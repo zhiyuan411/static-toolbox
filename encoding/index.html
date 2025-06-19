@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线编码转换工具</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#00B42A',
+                        danger: '#F53F3F',
+                        warning: '#FF7D00',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+            .box-shadow-hover {
+                box-shadow: 0 4px 12px rgba(22, 93, 255, 0.15);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter text-dark min-h-screen flex flex-col">
+    <!-- 导航栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-exchange text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-primary">在线编码转换工具</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-all duration-200">
+                    <i class="fa fa-moon-o text-gray-600"></i>
+                </button>
+                <button id="copy-all" class="hidden md:flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm">
+                    <i class="fa fa-copy mr-2"></i>复制全部结果
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <!-- 介绍区域 -->
+        <div class="mb-8 text-center">
+            <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-dark mb-2">多功能编码转换工具</h2>
+        </div>
+
+        <!-- 转换区域 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 transform hover:shadow-xl transition-all duration-300">
+            <!-- 文本框区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- 左侧原文 -->
+                <div class="lg:col-span-5 flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-lg">原文</h3>
+                        <div class="flex space-x-2">
+                            <button id="clear-left" class="p-2 text-gray-500 hover:text-danger transition-colors duration-200">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
+                            <button id="copy-left" class="p-2 text-gray-500 hover:text-primary transition-colors duration-200">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                            <button id="paste-left" class="p-2 text-gray-500 hover:text-secondary transition-colors duration-200">
+                                <i class="fa fa-paste"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="source-text" rows="35" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder="请输入需要转换的文本..."></textarea>
+                    <div class="mt-2 text-sm text-gray-500 flex justify-between">
+                        <span id="source-length">0 个字符</span>
+                        <button id="swap-text" class="text-primary hover:text-primary/80 transition-colors duration-200">
+                            <i class="fa fa-exchange mr-1"></i> 交换文本
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 中间按钮区域 -->
+                <div class="lg:col-span-2 flex flex-col items-center justify-center space-y-3">
+                    <button id="auto-decode" class="w-full flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-magic mr-2"></i>自动解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="url-encode" class="w-full flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-link mr-2"></i>URL编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="url-decode" class="w-full flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-unlink mr-2"></i>URL解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="unicode-encode" class="w-full flex items-center justify-center px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-language mr-2"></i>Unicode编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="unicode-decode" class="w-full flex items-center justify-center px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-language mr-2"></i>Unicode解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="hex-html-encode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>16进制HTML实体编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="hex-html-decode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>16进制HTML实体解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="dec-html-encode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>10进制HTML实体编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="dec-html-decode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-300 text-white rounded-lg hover:bg-amber-400 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>10进制HTML实体解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="escape-encode" class="w-full flex items-center justify-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-shield mr-2"></i>Escape编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="escape-decode" class="w-full flex items-center justify-center px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-unlock mr-2"></i>Escape解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="utf8-encode" class="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>UTF-8编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="utf8-decode" class="w-full flex items-center justify-center px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>UTF-8解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="ascii-encode" class="w-full flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-keyboard-o mr-2"></i>ASCII编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="ascii-decode" class="w-full flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-keyboard-o mr-2"></i>ASCII解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                </div>
+
+                <!-- 右侧结果 -->
+                <div class="lg:col-span-5 flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-lg">转换结果</h3>
+                        <div class="flex space-x-2">
+                            <button id="clear-right" class="p-2 text-gray-500 hover:text-danger transition-colors duration-200">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
+                            <button id="copy-right" class="p-2 text-gray-500 hover:text-primary transition-colors duration-200">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                            <button id="paste-right" class="p-2 text-gray-500 hover:text-secondary transition-colors duration-200">
+                                <i class="fa fa-paste"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="result-text" rows="35" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder="转换结果将显示在这里..." ></textarea>
+                    <div class="mt-2 text-sm text-gray-500">
+                        <span id="result-length">0 个字符</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+
+    <!-- 通知组件 -->
+    <div id="notification" class="fixed top-4 right-4 p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 max-w-sm"></div>
+
+    <script>
+        // 获取DOM元素
+        const sourceText = document.getElementById('source-text');
+        const resultText = document.getElementById('result-text');
+        const sourceLength = document.getElementById('source-length');
+        const resultLength = document.getElementById('result-length');
+        const notification = document.getElementById('notification');
+
+        // 更新字符计数
+        function updateCharCount() {
+            sourceLength.textContent = `${sourceText.value.length} 个字符`;
+            resultLength.textContent = `${resultText.value.length} 个字符`;
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'success') {
+            // 设置通知样式
+            let bgColor, textColor, icon;
+            switch(type) {
+                case 'success':
+                    bgColor = 'bg-secondary';
+                    textColor = 'text-white';
+                    icon = 'fa-check-circle';
+                    break;
+                case 'error':
+                    bgColor = 'bg-danger';
+                    textColor = 'text-white';
+                    icon = 'fa-exclamation-circle';
+                    break;
+                case 'info':
+                    bgColor = 'bg-primary';
+                    textColor = 'text-white';
+                    icon = 'fa-info-circle';
+                    break;
+                default:
+                    bgColor = 'bg-gray-800';
+                    textColor = 'text-white';
+                    icon = 'fa-info-circle';
+            }
+
+            // 创建通知内容
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 max-w-sm ${bgColor} ${textColor}`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fa ${icon} mr-3 text-lg"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            // 显示通知
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 10);
+
+            // 3秒后隐藏通知
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+            }, 3000);
+        }
+
+        // 编码/解码函数
+        const encoders = {
+            // URL编码
+            'url-encode': (text) => {
+                try {
+                    return encodeURIComponent(text);
+                } catch (e) {
+                    showNotification('URL编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // URL解码
+            'url-decode': (text) => {
+                try {
+                    return decodeURIComponent(text);
+                } catch (e) {
+                    showNotification('URL解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Unicode编码
+            'unicode-encode': (text) => {
+                try {
+                    return text.replace(/[\s\S]/g, (char) => {
+                        const code = char.charCodeAt(0);
+                        if (code < 128) {
+                            return char; // 保留ASCII字符
+                        }
+                        return `\\u${code.toString(16).padStart(4, '0')}`;
+                    });
+                } catch (e) {
+                    showNotification('Unicode编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Unicode解码
+            'unicode-decode': (text) => {
+                try {
+                    return text.replace(/\\u([0-9A-Fa-f]{4})/g, (match, hex) => {
+                        return String.fromCharCode(parseInt(hex, 16));
+                    });
+                } catch (e) {
+                    showNotification('Unicode解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 16进制HTML实体编码
+            'hex-html-encode': (text) => {
+                try {
+                    return text.replace(/[\s\S]/g, (char) => {
+                        const code = char.charCodeAt(0);
+                        if (code < 128) {
+                            return char; // 保留ASCII字符
+                        }
+                        return `&#x${code.toString(16).toLowerCase()};`;
+                    });
+                } catch (e) {
+                    showNotification('16进制HTML实体编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 16进制HTML实体解码
+            'hex-html-decode': (text) => {
+                try {
+                    return text.replace(/&#x([\da-fA-F]+);/g, (match, hex) => {
+                        return String.fromCodePoint(parseInt(hex, 16));
+                    });
+                } catch (e) {
+                    showNotification('16进制HTML实体解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 10进制HTML实体编码
+            'dec-html-encode': (text) => {
+                try {
+                    return text.replace(/[\s\S]/g, (char) => {
+                        const code = char.charCodeAt(0);
+                        if (code < 128) {
+                            return char; // 保留ASCII字符
+                        }
+                        return `&#${code};`;
+                    });
+                } catch (e) {
+                    showNotification('10进制HTML实体编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 10进制HTML实体解码
+            'dec-html-decode': (text) => {
+                try {
+                    return text.replace(/&#(\d+);/g, (match, code) => {
+                        return String.fromCodePoint(parseInt(code, 10));
+                    });
+                } catch (e) {
+                    showNotification('10进制HTML实体解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Escape编码
+            'escape-encode': (text) => {
+                try {
+                    return escape(text);
+                } catch (e) {
+                    showNotification('Escape编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Escape解码
+            'escape-decode': (text) => {
+                try {
+                    return unescape(text);
+                } catch (e) {
+                    showNotification('Escape解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // UTF-8编码
+            'utf8-encode': (text) => {
+                try {
+                    const encoder = new TextEncoder();
+                    const bytes = encoder.encode(text);
+                    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join(' ');
+                } catch (e) {
+                    showNotification('UTF-8编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // UTF-8解码
+            'utf8-decode': (text) => {
+                try {
+                    const hexArray = text.trim().split(/\s+/);
+                    const bytes = new Uint8Array(hexArray.map(hex => parseInt(hex, 16)));
+                    const decoder = new TextDecoder();
+                    return decoder.decode(bytes);
+                } catch (e) {
+                    showNotification('UTF-8解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // ASCII编码
+            'ascii-encode': (text) => {
+                try {
+                    return text.split('').map(char => {
+                        const code = char.charCodeAt(0);
+                        if (code > 127) {
+                            return `?`; // ASCII只能表示0-127
+                        }
+                        return code.toString();
+                    }).join(' ');
+                } catch (e) {
+                    showNotification('ASCII编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // ASCII解码
+            'ascii-decode': (text) => {
+                try {
+                    return text.trim().split(/\s+/).map(code => {
+                        const num = parseInt(code, 10);
+                        if (isNaN(num) || num < 0 || num > 127) {
+                            return '�'; // 无效字符
+                        }
+                        return String.fromCharCode(num);
+                    }).join('');
+                } catch (e) {
+                    showNotification('ASCII解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 自动解码
+            'auto-decode': (text) => {
+                try {
+                    // 检测16进制HTML实体编码: &#x字符; 格式
+                    if (/&#x[\da-fA-F]+;/.test(text)) {
+                        return encoders['hex-html-decode'](text);
+                    }
+
+                    // 检测10进制HTML实体编码: &#数字; 格式
+                    if (/&#\d+;/.test(text)) {
+                        return encoders['dec-html-decode'](text);
+                    }
+
+                    // 检测Unicode编码: \u字符 格式
+                    if (/\\u[\da-fA-F]{4}/.test(text)) {
+                        return encoders['unicode-decode'](text);
+                    }
+
+                    // 检测UTF-8编码: 两个或三个16进制数一组
+                    if (/^(?:[0-9A-Fa-f]{2} )+[0-9A-Fa-f]{2}$/.test(text.trim())) {
+                        return encoders['utf8-decode'](text);
+                    }
+
+                    // 检测ASCII编码: 数字空格格式
+                    if (/^\d+( \d+)*$/.test(text.trim())) {
+                        return encoders['ascii-decode'](text);
+                    }
+
+                    // 检测URL编码
+                    try {
+                        const decoded = decodeURIComponent(text);
+                        if (decoded !== text) {
+                            return decoded;
+                        }
+                    } catch (e) {
+                        // 不是URL编码
+                    }
+
+                    // 检测Escape编码: %xx 或 %uxxxx 格式
+                    if (/%[0-9A-Fa-f]{2}|%u[0-9A-Fa-f]{4}/.test(text)) {
+                        return encoders['escape-decode'](text);
+                    }
+
+                    showNotification('无法识别编码格式，使用原始文本', 'warning');
+                    return text;
+                } catch (e) {
+                    showNotification('自动解码失败，尝试其他方式', 'error');
+                    return text;
+                }
+            }
+        };
+
+        // 处理编码/解码按钮点击
+        document.querySelectorAll('button[id$="-encode"], button[id$="-decode"], #auto-decode').forEach(button => {
+            button.addEventListener('click', () => {
+                const action = button.id;
+                let source, result;
+
+                // 确定源文本和结果文本框
+                if (action.endsWith('-encode')) {
+                    source = sourceText.value;
+                    result = encoders[action](source);
+                    resultText.value = result;
+                } else {
+                    // 所有解码操作（包括自动解码）都从右到左
+                    source = resultText.value;
+                    result = encoders[action](source);
+                    sourceText.value = result;
+                }
+
+                updateCharCount();
+
+                // 添加动画效果
+                const targetElement = action.endsWith('-encode') ? resultText : sourceText;
+                targetElement.classList.add('ring-2', 'ring-secondary');
+                setTimeout(() => {
+                    targetElement.classList.remove('ring-2', 'ring-secondary');
+                }, 500);
+
+                showNotification(`${button.textContent.trim()} 成功`, 'success');
+            });
+        });
+
+        // 交换文本按钮
+        document.getElementById('swap-text').addEventListener('click', () => {
+            const temp = sourceText.value;
+            sourceText.value = resultText.value;
+            resultText.value = temp;
+            updateCharCount();
+            showNotification('文本已交换', 'info');
+        });
+
+        // 清空按钮
+        document.getElementById('clear-left').addEventListener('click', () => {
+            sourceText.value = '';
+            updateCharCount();
+            showNotification('原文已清空', 'info');
+        });
+
+        document.getElementById('clear-right').addEventListener('click', () => {
+            resultText.value = '';
+            updateCharCount();
+            showNotification('结果已清空', 'info');
+        });
+
+        // 复制按钮
+        document.getElementById('copy-left').addEventListener('click', () => {
+            if (sourceText.value) {
+                sourceText.select();
+                document.execCommand('copy');
+                showNotification('原文已复制到剪贴板', 'success');
+            }
+        });
+
+        document.getElementById('copy-right').addEventListener('click', () => {
+            if (resultText.value) {
+                resultText.select();
+                document.execCommand('copy');
+                showNotification('结果已复制到剪贴板', 'success');
+            }
+        });
+
+        document.getElementById('copy-all').addEventListener('click', () => {
+            const allText = `原文:\n${sourceText.value}\n\n结果:\n${resultText.value}`;
+            navigator.clipboard.writeText(allText).then(() => {
+                showNotification('全部内容已复制到剪贴板', 'success');
+            }).catch(err => {
+                showNotification('复制失败', 'error');
+            });
+        });
+
+        // 粘贴按钮
+        document.getElementById('paste-left').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                sourceText.value = text;
+                updateCharCount();
+                showNotification('已从剪贴板粘贴', 'success');
+            } catch (err) {
+                showNotification('粘贴失败', 'error');
+            }
+        });
+
+        document.getElementById('paste-right').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                resultText.value = text;
+                updateCharCount();
+                showNotification('已从剪贴板粘贴', 'success');
+            } catch (err) {
+                showNotification('粘贴失败', 'error');
+            }
+        });
+
+        // 暗色/亮色模式切换
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const icon = document.querySelector('#theme-toggle i');
+            if (icon.classList.contains('fa-moon-o')) {
+                icon.classList.remove('fa-moon-o');
+                icon.classList.add('fa-sun-o');
+                document.body.classList.add('bg-gray-900', 'text-white');
+                document.body.classList.remove('bg-gray-50', 'text-dark');
+                showNotification('已切换到暗色模式', 'info');
+            } else {
+                icon.classList.remove('fa-sun-o');
+                icon.classList.add('fa-moon-o');
+                document.body.classList.remove('bg-gray-900', 'text-white');
+                document.body.classList.add('bg-gray-50', 'text-dark');
+                showNotification('已切换到亮色模式', 'info');
+            }
+        });
+
+        // 初始化
+        sourceText.addEventListener('input', updateCharCount);
+        resultText.addEventListener('input', updateCharCount);
+        updateCharCount();
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+C 复制结果
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && resultText.matches(':focus')) {
+                e.preventDefault();
+                document.getElementById('copy-right').click();
+            }
+
+            // Ctrl+V 粘贴到原文
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v' && sourceText.matches(':focus')) {
+                e.preventDefault();
+                document.getElementById('paste-left').click();
+            }
+        });
+    </script>
+<script src="/floating-ball/load-floating-ball.js"></script>
+</body>
+</html>
+    

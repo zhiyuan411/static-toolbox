@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多语言代码高亮与格式化工具</title>
+    <!-- Highlight.js 核心样式 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
+    <!-- js_beautify 格式化库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-css.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #2c3e50);
+            color: #ecf0f1;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .tool-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .input-section, .output-section {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(30, 30, 46, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .section-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title i {
+            color: #3498db;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        select, button {
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: none;
+            background: #34495e;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+        select {
+            background-size: 16px;
+            padding-right: 40px;
+            appearance: none;
+        }
+        button {
+            background: #3498db;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        button.secondary {
+            background: #9b59b6;
+        }
+        button.secondary:hover {
+            background: #8e44ad;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 18px;
+            border-radius: 8px;
+            background: #2c3e50;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 15px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        .output {
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 20px;
+            overflow: auto;
+            height: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        /* 行号样式 */
+        .line-numbers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 40px;
+            padding: 20px 5px;
+            text-align: right;
+            background: #2c3e50;
+            border-right: 1px solid #555;
+            color: #999;
+            user-select: none;
+            font-family: monospace;
+            line-height: 1.5;
+        }
+
+        .code-container {
+            position: relative;
+            padding-left: 45px; /* 为行号留出空间 */
+        }
+
+        .hljs {
+            background: transparent !important;
+            padding: 0 !important;
+        }
+
+        /* 设置区样式 */
+        .settings-container {
+            background: rgba(30, 30, 46, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 25px;
+        }
+        
+        .settings-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .settings-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+        
+        .theme-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .theme-btn {
+            padding: 10px 15px;
+            border-radius: 6px;
+            background: #2c3e50;
+            border: none;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .theme-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .theme-btn.active {
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 40px 0;
+        }
+        
+        .feature-card {
+            background: rgba(30, 30, 46, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .feature-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>多语言代码高亮与格式化工具</h1>
+        </header>
+        
+        <div class="tool-container">
+            <div class="input-section">
+                <div class="section-title">
+                    <i class="fas fa-code"></i>
+                    <h2>输入代码</h2>
+                </div>
+                <div class="controls">
+                    <select id="language-select">
+                        <option value="auto" selected>自动检测</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                        <option value="csharp">C#</option>
+                        <option value="php">PHP</option>
+                        <option value="sql">SQL</option>
+                        <option value="json">JSON</option>
+                    </select>
+                    <button id="format-btn">
+                        <i class="fas fa-indent"></i>
+                        格式化代码
+                    </button>
+                </div>
+                <textarea id="code-input" placeholder="在此粘贴代码..."></textarea>
+            </div>
+            
+            <div class="output-section">
+                <div class="section-title">
+                    <i class="fas fa-highlighter"></i>
+                    <h2>高亮结果</h2>
+                </div>
+                <div class="controls">
+                    <button id="copy-btn" class="secondary">
+                        <i class="fas fa-copy"></i>
+                        复制到剪贴板
+                    </button>
+                </div>
+                <div class="output">
+                    <div class="line-numbers" id="line-numbers"></div>
+                    <div class="code-container">
+                        <pre><code id="code-output"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        
+        <!-- 设置区 - 移至底部 -->
+        <div class="settings-container">
+            <div class="settings-title">格式化设置</div>
+            
+            <div class="settings-group">
+                <select id="indent-size">
+                    <option value="2">缩进大小: 2 空格</option>
+                    <option value="4" selected>缩进大小: 4 空格</option>
+                    <option value="8">缩进大小: 8 空格</option>
+                    <option value="tab">缩进类型: Tab</option>
+                </select>
+                <select id="wrap-line-length">
+                    <option value="0">不换行</option>
+                    <option value="80" selected>换行长度: 80 字符</option>
+                    <option value="100">换行长度: 100 字符</option>
+                    <option value="120">换行长度: 120 字符</option>
+                </select>
+                <select id="end-with-newline">
+                    <option value="false">结尾不添加空行</option>
+                    <option value="true" selected>结尾添加空行</option>
+                </select>
+            </div>
+            
+            <div class="settings-group">
+                <select id="indent-with-tabs">
+                    <option value="false" selected>使用空格缩进</option>
+                    <option value="true">使用制表符缩进</option>
+                </select>
+                <select id="preserve-newlines">
+                    <option value="false">合并所有换行符</option>
+                    <option value="true" selected>保留换行符</option>
+                </select>
+                <select id="max-preserve-newlines">
+                    <option value="0">不限制连续空行数</option>
+                    <option value="1" selected>最多1个连续空行</option>
+                    <option value="2">最多2个连续空行</option>
+                    <option value="3">最多3个连续空行</option>
+                </select>
+            </div>
+            
+            <div class="settings-group">
+                <select id="space-in-paren">
+                    <option value="false" selected>括号内不留空格 (function(a, b))</option>
+                    <option value="true">括号内留空格 (function( a, b ))</option>
+                </select>
+                <select id="space-in-empty-paren">
+                    <option value="false" selected>空括号不留空格 ()</option>
+                    <option value="true">空括号留空格 ( )</option>
+                </select>
+                <select id="jslint-happy">
+                    <option value="false" selected>标准格式</option>
+                    <option value="true">JSLint 兼容格式</option>
+                </select>
+            </div>
+            
+            <div class="settings-group">
+                <select id="brace-style">
+                    <option value="collapse" selected>K&R 风格 (if() { ... })</option>
+                    <option value="expand">Allman 风格 (if()\n{\n ...\n})</option>
+                    <option value="end-expand">Pico 风格 (if() {\n ...\n})</option>
+                    <option value="collapse-preserve-inline">保留内联大括号</option>
+                    <option value="none">不处理大括号</option>
+                </select>
+                <select id="break-chained-methods">
+                    <option value="false" selected>链式方法不换行</option>
+                    <option value="true">链式方法换行</option>
+                </select>
+                <select id="keep-array-indentation">
+                    <option value="false" selected>不保留数组缩进</option>
+                    <option value="true">保留数组缩进</option>
+                </select>
+            </div>
+            
+            <div class="settings-group">
+                <select id="unescape-strings">
+                    <option value="false" selected>不转义字符串</option>
+                    <option value="true">转义字符串</option>
+                </select>
+                <select id="e4x">
+                    <option value="false" selected>不保留E4X标签</option>
+                    <option value="true">保留E4X标签</option>
+                </select>
+                <select id="comma-first">
+                    <option value="false" selected>逗号放后面</option>
+                    <option value="true">逗号放前面</option>
+                </select>
+            </div>
+            
+            <div class="settings-title">主题选择</div>
+            <div class="theme-selector">
+                <button class="theme-btn active" data-theme="github-dark">GitHub 暗色</button>
+                <button class="theme-btn" data-theme="vs">Visual Studio</button>
+                <button class="theme-btn" data-theme="atom-one-dark">Atom Dark</button>
+                <button class="theme-btn" data-theme="solarized-dark">Solarized</button>
+                <button class="theme-btn" data-theme="monokai">Monokai</button>
+                <button class="theme-btn" data-theme="dracula">Dracula</button>
+            </div>
+        </div>
+        
+        <div class="notification" id="notification">
+            <i class="fas fa-check-circle"></i> 已复制到剪贴板
+        </div>
+    </div>
+
+    <!-- Highlight.js 核心库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <!-- 添加额外语言支持 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/json.min.js"></script>
+
+    <script>
+        // 初始化 Highlight.js
+        hljs.highlightAll();
+
+        // DOM 元素
+        const codeInput = document.getElementById('code-input');
+        const codeOutput = document.getElementById('code-output');
+        const languageSelect = document.getElementById('language-select');
+        const formatBtn = document.getElementById('format-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const themeBtns = document.querySelectorAll('.theme-btn');
+        const lineNumbers = document.getElementById('line-numbers');
+        const notification = document.getElementById('notification');
+        
+        // 格式化设置
+        const indentSize = document.getElementById('indent-size');
+        const wrapLineLength = document.getElementById('wrap-line-length');
+        const endWithNewline = document.getElementById('end-with-newline');
+        const indentWithTabs = document.getElementById('indent-with-tabs');
+        const preserveNewlines = document.getElementById('preserve-newlines');
+        const maxPreserveNewlines = document.getElementById('max-preserve-newlines');
+        const spaceInParen = document.getElementById('space-in-paren');
+        const spaceInEmptyParen = document.getElementById('space-in-empty-paren');
+        const jslintHappy = document.getElementById('jslint-happy');
+        const braceStyle = document.getElementById('brace-style');
+        const breakChainedMethods = document.getElementById('break-chained-methods');
+        const keepArrayIndentation = document.getElementById('keep-array-indentation');
+        const unescapeStrings = document.getElementById('unescape-strings');
+        const e4x = document.getElementById('e4x');
+        const commaFirst = document.getElementById('comma-first');
+
+        // 格式化代码
+        function formatCode(code) {
+            // 获取格式化设置
+            const options = {
+                indent_size: indentSize.value === 'tab' ? 'tab' : parseInt(indentSize.value, 10),
+                wrap_line_length: parseInt(wrapLineLength.value, 10),
+                end_with_newline: endWithNewline.value === 'true',
+                indent_with_tabs: indentWithTabs.value === 'true',
+                preserve_newlines: preserveNewlines.value === 'true',
+                max_preserve_newlines: parseInt(maxPreserveNewlines.value, 10),
+                space_in_paren: spaceInParen.value === 'true',
+                space_in_empty_paren: spaceInEmptyParen.value === 'true',
+                jslint_happy: jslintHappy.value === 'true',
+                brace_style: braceStyle.value,
+                break_chained_methods: breakChainedMethods.value === 'true',
+                keep_array_indentation: keepArrayIndentation.value === 'true',
+                unescape_strings: unescapeStrings.value === 'true',
+                e4x: e4x.value === 'true',
+                comma_first: commaFirst.value === 'true'
+            };
+            
+            try {
+                // 尝试自动检测语言并格式化
+                if (languageSelect.value === 'json' || (languageSelect.value === 'auto' && isJSON(code))) {
+                    // JSON 格式化
+                    return JSON.stringify(JSON.parse(code), null, options.indent_size === 'tab' ? '\t' : options.indent_size);
+                } else if (languageSelect.value === 'javascript' || languageSelect.value === 'auto') {
+                    // JavaScript 格式化
+                    return js_beautify(code, options);
+                } else if (languageSelect.value === 'html' || languageSelect.value === 'auto') {
+                    // HTML 格式化
+                    return html_beautify(code, options);
+                } else if (languageSelect.value === 'css' || languageSelect.value === 'auto') {
+                    // CSS 格式化
+                    return css_beautify(code, options);
+                } else {
+                    // 对于不支持的语言，使用 js_beautify 进行通用格式化
+                    return js_beautify(code, options);
+                }
+            } catch (e) {
+                // 如果格式化失败，返回错误信息和原始代码
+                return `// 格式化错误:\n// ${e.message}\n\n${code}`;
+            }
+        }
+        
+        // 检查是否为 JSON
+        function isJSON(str) {
+            try {
+                JSON.parse(str);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // 应用语法高亮
+        function applyHighlight(code) {
+            const selectedLanguage = languageSelect.value;
+
+            if (selectedLanguage === 'auto') {
+                // 自动检测语言
+                const result = hljs.highlightAuto(code);
+                codeOutput.innerHTML = result.value;
+            } else {
+                // 指定语言高亮
+                const result = hljs.highlight(code, {
+                    language: selectedLanguage,
+                    ignoreIllegals: true
+                });
+                codeOutput.innerHTML = result.value;
+            }
+
+            // 生成行号
+            const lines = code.split('\n').length;
+            let lineNumbersHTML = '';
+            for (let i = 1; i <= lines; i++) {
+                lineNumbersHTML += `<div>${i}</div>`;
+            }
+            lineNumbers.innerHTML = lineNumbersHTML;
+        }
+
+        // 格式化并高亮代码
+        formatBtn.addEventListener('click', () => {
+            const code = codeInput.value;
+            
+            // 先格式化代码
+            const formattedCode = formatCode(code);
+            
+            // 只更新输出框，不修改输入框内容
+            codeOutput.textContent = formattedCode;
+            
+            // 应用语法高亮
+            applyHighlight(formattedCode);
+        });
+
+        // 复制到剪贴板
+        copyBtn.addEventListener('click', () => {
+            const textArea = document.createElement('textarea');
+            textArea.value = codeOutput.innerText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            // 显示通知
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        });
+
+        // 主题切换功能
+        themeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.getAttribute('data-theme');
+
+                // 更新主题样式
+                const themeLink = `https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/${theme}.min.css`;
+                document.querySelector('link[href*="highlight.js"]').href = themeLink;
+
+                // 更新活动按钮状态
+                themeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+        });
+
+        // 初始高亮示例代码
+        formatBtn.click();
+    </script>
+<script src="/floating-ball/load-floating-ball.js"></script>
+</body>
+</html>    

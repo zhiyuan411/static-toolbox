@@ -1,0 +1,978 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, user-scalable=no">
+    <meta name="description" content="A fast and simple tool to convert to and from base64.">
+    <meta name="theme-color" content="#2196f3">
+    <link rel="startfrom" href="https://pr.gg/base64/">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta http-equiv="cleartype" content="on">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="msapplication-TileColor" content="#2196f3">
+    <meta property="og:title" content="Base64 Converter">
+    <meta property="og:type" content="website">
+    <meta property="og:description" content="A fast and simple tool to convert to and from base64.">
+    <title>Base64 Converter</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        body {
+            background: #fafafa;
+            font-family: 'Roboto', 'Helvetica', 'Trebuchet MS1', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -ms-touch-action: none;
+
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+        }
+        .header {
+            background: #2196f3;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.26);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 400;
+            padding: 0.65em;
+
+            -webkit-flex: 0 0 auto;
+            flex: 0 0 auto;
+        }
+        .io {
+            -webkit-flex: 1 1 auto;
+            flex: 1 1 auto;
+            min-height: 0;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-direction: row;
+            flex-direction: row;
+        }
+        .tile {
+            background: #fff;
+            border-radius: 2px;
+            box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 1px 5px 0 rgba(0,0,0,0.12), 0 3px 1px -2px rgba(0,0,0,0.2);
+            margin: 2em;
+            min-height: 7em;
+
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex: 1 0 auto;
+            flex: 1 0 auto;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            width: 0;
+        }
+        #leftTile { margin-right: 1em; }
+        #rightTile { margin-left: 1em; }
+        .type {
+            border-bottom: 1px solid #dbdbdb;
+            color: rgba(0,0,0,0.87);
+            font-size: 18px;
+            font-weight: 500;
+            padding: 0.65em;
+
+            -webkit-flex: 0 0 auto;
+            flex: 0 0 auto;
+            
+            /* 新增：使type区域成为flex容器 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .content {
+            font-family: monospace;
+            font-size: 14px;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            margin-bottom: 2em;
+            margin-right: 2em;
+            -webkit-flex: 1 1 auto;
+            flex: 1 1 auto;
+        }
+        .textarea {
+            border: none;
+            font-family: inherit;
+            font-size: inherit;
+            height: 100%;
+            margin: 0;
+            min-height: 3em;
+            outline: none;
+            overflow: auto;
+            padding: 1em;
+            position: absolute;
+            resize: none;
+            width: 100%;
+        }
+        .textarea[readonly], .textarea[readonly='readonly'] {
+            background: #fff;
+            color: rgba(0,0,0,0.54);
+        }
+        .hidden {
+            display: none;
+        }
+        .errorSource {
+            background-color: #ffebee;
+            color: rgba(0,0,0,0.38);
+        }
+        .errorDestination {
+            color: rgba(0,0,0,0.38);
+        }
+        .imagearea {
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-size: contain;
+            font-family: inherit;
+            font-size: inherit;
+            height: 100%;
+            min-height: 3em;
+            margin: 0;
+            overflow: auto;
+            padding: 1em;
+            position: absolute;
+            width: 100%;
+        }
+        .customUpload {
+            bottom: 0;
+            height: 60px;
+            left: 0;
+            margin: auto;
+            overflow: hidden;
+            position: absolute;
+            right: 0;
+            top: 0;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-user-select: none;
+            user-select: none;
+            width: 60px;
+        }
+        .imagearea.containsImage .customUpload {
+            margin: 0;
+            position: relative;
+        }
+        .customUpload svg {
+            -webkit-filter: drop-shadow(0 2px 1px rgba(0,0,0,0.14)) drop-shadow(0 1px 5px rgba(0,0,0,0.12)) drop-shadow(0 1px 1px rgba(0,0,0,0.1));
+            filter: drop-shadow(0 2px 1px rgba(0,0,0,0.14)) drop-shadow(0 1px 5px rgba(0,0,0,0.12)) drop-shadow(0 1px 1px rgba(0,0,0,0.1));
+            height: 100%;
+            width: 100%;
+        }
+        .customUpload svg path {
+            fill: #2196f3;
+        }
+        .customUpload:hover svg path {
+            fill: #1976d2;
+        }
+        .customUpload input {
+            cursor: pointer;
+            height: 200%;
+            left: 0;
+            opacity: 0;
+            position: absolute;
+            -webkit-tap-highlight-color: transparent;
+            top: -100%;
+            width: 100%;
+            z-index: 99;
+        }
+        #leftTile .dragover {
+            background-color: #e1f5fe;
+        }
+
+        @media (max-width: 1000px) {
+            .io {
+                -webkit-flex-direction: column;
+                flex-direction: column;
+            }
+            .tile {
+                border-radius: 0;
+                box-shadow: none;
+                margin: 0;
+
+                -webkit-flex: 1 0 auto;
+                flex: 1 0 auto;
+                height: 0;
+                width: 100%;
+            }
+            #leftTile { margin-right: 0; }
+            #rightTile { margin-left: 0; }
+            body {
+                background: #fff;
+            }
+        }
+
+        .customSelect {
+            border-bottom: 1px solid #dbdbdb;
+            display: inline-block;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .customSelect svg {
+            display: inline-block;
+            height: 1em;
+            vertical-align: text-bottom;
+            width: 1em;
+            margin-left: -2px;
+        }
+        .customSelect svg path {
+            fill: rgba(0,0,0,0.87);
+        }
+        .customSelect select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            border: none;
+            box-shadow: none;
+            font: inherit;
+            height: 120%;
+            left: -10%;
+            margin: 0;
+            opacity: 0;
+            padding: 0;
+            position: absolute;
+            top: -10%;
+            width: 120%;
+        }
+        .customSelect select:focus {
+            outline: none;
+        }
+        .customSelect#focused {
+            border-bottom: 1px solid rgba(0,0,0,0.87);
+        }
+        
+        /* 新增：按钮样式 */
+        .btn-group {
+            display: flex;
+            gap: 0.5em;
+        }
+        .action-btn {
+            background-color: #f5f5f5;
+            border: 1px solid #dbdbdb;
+            border-radius: 4px;
+            color: rgba(0,0,0,0.87);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0.3em 0.6em;
+            transition: background-color 0.2s;
+        }
+        .action-btn:hover {
+            background-color: #e0e0e0;
+        }
+        .action-btn:active {
+            background-color: #d0d0d0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        Base64 Converter（直接输入，实时双向转换）
+    </div>
+    <div class="io">
+        <div id="leftTile" class="tile">
+            <div class="type">
+                <div class="customSelect">
+                    <select id="leftTypeSelect">
+                        <option value="text" selected="true">Text（文本）</option>
+                        <option value="image">Image（图片）</option>
+                    </select>
+                    <span id="leftTypeText">Text</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 300 300">
+                        <path d="M0 0L100 0L50 80Z" />
+                    </svg>
+                </div>
+                <!-- 新增：左侧按钮组 -->
+                <div class="btn-group">
+                    <button id="leftClearBtn" class="action-btn">清空</button>
+                    <button id="leftCopyBtn" class="action-btn">复制</button>
+                    <button id="leftPasteBtn" class="action-btn">粘贴</button>
+                </div>
+            </div>
+            <div id="leftContent" class="content">
+                <textarea id="leftTextarea" class="textarea" spellcheck="false" placeholder="在这里输入文本，点击上方选项可选择图片文件进行转换"></textarea>
+                <div id="leftImageArea" class="imagearea hidden">
+                    <div class="customUpload">
+                        <input id="leftImageInput" type="file" accept="image/*" title="">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="rightTile" class="tile">
+            <div class="type">
+                <div class="customSelect">
+                    <select id="rightTypeSelect">
+                        <option value="base64utf8" selected="true">Base64 (utf8)</option>
+                        <option value="base64ascii">Base64 (ascii)</option>
+                        <option value="base64urlutf8">Base64url (utf8)</option>
+                        <option value="base32utf8">Base32 (utf8)</option>
+                        <option value="base64image" disabled="true">Base64 (image)</option>
+                    </select>
+                    <span id="rightTypeText">Base64</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="-100 -100 300 300">
+                        <path d="M0 0L100 0L50 80Z" />
+                    </svg>
+                </div>
+                <!-- 新增：右侧按钮组 -->
+                <div class="btn-group">
+                    <button id="rightClearBtn" class="action-btn">清空</button>
+                    <button id="rightCopyBtn" class="action-btn">复制</button>
+                    <button id="rightPasteBtn" class="action-btn">粘贴</button>
+                </div>
+            </div>
+            <div class="content">
+                <textarea id="rightTextarea" class="textarea" spellcheck="false" placeholder="这里展示转换结果，点击上方选项可以选择输出的编码。"></textarea>
+            </div>
+        </div>
+    </div>
+<script src="https://cdn.jsdelivr.net/npm/hi-base32@0.5.1/build/base32.min.js"></script>
+<script>
+'use strict';
+
+var LeftConversionTypes, RightConversionTypes;
+var leftConversionType, rightConversionType;
+var userLastChangedRightSide = false;
+var currentFile;
+
+window.addEventListener('DOMContentLoaded', function() {
+    LeftConversionTypes = {
+        'text': {displayName: 'Text', isImage: false},
+        'image': {displayName: 'Image', isImage: true}
+    }
+
+    RightConversionTypes = {
+        'base64utf8': {displayName: 'Base64', encoding: 'utf8', forImage: false},
+        'base64ascii': {displayName: 'Base64 (ascii)', encoding: 'ascii', forImage: false},
+        'base64urlutf8': {displayName: 'Base64url (utf8)', encoding: 'base64urlutf8', forImage: false},
+        'base32utf8': {displayName: 'Base32 (utf8)', encoding: 'base32utf8', forImage: false},
+        'base64image': {displayName: 'Base64 (image)', encoding: 'utf8', forImage: true}
+    }
+
+    leftConversionType = LeftConversionTypes[Object.keys(LeftConversionTypes)[0]];
+    rightConversionType = RightConversionTypes[Object.keys(RightConversionTypes)[0]];
+
+    leftTextarea.addEventListener('input', function() {
+        userLastChangedRightSide = false;
+        updateConversion();
+    });
+
+    leftImageInput.addEventListener('change', function(event) {
+        if (event.target.files[0]) {
+            currentFile = event.target.files[0];
+            userLastChangedRightSide = false;
+            updateConversion();
+        }
+    });
+
+    rightTextarea.addEventListener('input', function() {
+        userLastChangedRightSide = true;
+        updateConversion();
+    });
+
+    leftTypeSelect.addEventListener('change', function() {
+        onLeftTypeChanged();
+    });
+
+    rightTypeSelect.addEventListener('change', function() {
+        onRightTypeChanged();
+    });
+
+    leftTypeSelect.addEventListener('focus', function(event) {
+        leftTypeSelect.parentElement.setAttribute('id', 'focused');
+    });
+    leftTypeSelect.addEventListener('blur', function(event) {
+        leftTypeSelect.parentElement.removeAttribute('id');
+    });
+    rightTypeSelect.addEventListener('focus', function(event) {
+        rightTypeSelect.parentElement.setAttribute('id', 'focused');
+    });
+    rightTypeSelect.addEventListener('blur', function(event) {
+        rightTypeSelect.parentElement.removeAttribute('id');
+    });
+
+    var insideCount = 0;
+    leftContent.addEventListener('dragenter', function(event) {
+        insideCount++;
+        leftTextarea.classList.add('dragover');
+        leftImageArea.classList.add('dragover');
+    });
+    leftContent.addEventListener('dragleave', function(event) {
+        if (--insideCount === 0) {
+            leftTextarea.classList.remove('dragover');
+            leftImageArea.classList.remove('dragover');
+        }
+    });
+    document.body.addEventListener('dragover', function(event) {
+        event.preventDefault();
+    });
+    document.body.addEventListener('drop', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        insideCount = 0;
+        leftTextarea.classList.remove('dragover');
+        leftImageArea.classList.remove('dragover');
+        if (event.dataTransfer.files.length > 0)
+            onDropFiles(event.dataTransfer.files);
+    });
+
+    var leftConversionTypeFromDOM = LeftConversionTypes[leftTypeSelect.value];
+    if (leftConversionTypeFromDOM !== leftConversionType)
+        onLeftTypeChanged();
+    var rightConversionTypeFromDOM = RightConversionTypes[rightTypeSelect.value];
+    if (rightConversionTypeFromDOM !== rightConversionType)
+        onRightTypeChanged();
+        
+    // 新增：按钮事件监听
+    document.getElementById('leftClearBtn').addEventListener('click', function() {
+        leftTextarea.value = '';
+        updateConversion();
+    });
+    
+    document.getElementById('leftCopyBtn').addEventListener('click', function() {
+        leftTextarea.select();
+        document.execCommand('copy');
+    });
+    
+    document.getElementById('leftPasteBtn').addEventListener('click', function() {
+        navigator.clipboard.readText().then(function(text) {
+            leftTextarea.value = text;
+            updateConversion();
+        });
+    });
+    
+    document.getElementById('rightClearBtn').addEventListener('click', function() {
+        rightTextarea.value = '';
+        updateConversion();
+    });
+    
+    document.getElementById('rightCopyBtn').addEventListener('click', function() {
+        rightTextarea.select();
+        document.execCommand('copy');
+    });
+    
+    document.getElementById('rightPasteBtn').addEventListener('click', function() {
+        navigator.clipboard.readText().then(function(text) {
+            rightTextarea.value = text;
+            updateConversion();
+        });
+    });
+});
+
+function updateConversion() {
+    leftImageArea.classList.remove('errorSource');
+    leftTextarea.classList.remove('errorSource');
+    rightTextarea.classList.remove('errorSource');
+    leftTextarea.classList.remove('errorDestination');
+    rightTextarea.classList.remove('errorDestination');
+
+    if (leftConversionType.isImage)
+        convertImage();
+    else
+        bidirectionalTextConversion(!userLastChangedRightSide);
+}
+
+function convertImage() {
+    var setBackgroundImage = function(optionalDataUri) {
+        if (optionalDataUri) {
+            leftImageArea.classList.add('containsImage');
+            leftImageArea.style.backgroundImage = 'url(' + optionalDataUri + ')';
+        } else {
+            leftImageArea.classList.remove('containsImage');
+            leftImageArea.style.backgroundImage = '';
+        }
+    }
+    var success = function(value) {
+        var dataUri = 'data:' + imageType(currentFile) + ';base64,' + value;
+        rightTextarea.value = '<img src="' + dataUri + '">';
+        setBackgroundImage(dataUri);
+    }
+    var error = function(message) {
+        leftImageArea.classList.add('errorSource');
+        rightTextarea.classList.add('errorDestination');
+        rightTextarea.value = message;
+        setBackgroundImage(undefined);
+    }
+
+    if (!currentFile) {
+        rightTextarea.value = 'No image';
+        setBackgroundImage(undefined);
+        return;
+    }
+    if (imageType(currentFile).indexOf('image') === -1) {
+        error('Image type \'' + imageType(currentFile) + '\' was not recognized.');
+        return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(result) {
+        var imageFileAsArray = new Uint8Array(result.target.result);
+        asyncToBase64(imageFileAsArray, undefined, success, error);
+    };
+    reader.onerror = function(result) {
+        error(result.message);
+    };
+
+    rightTextarea.value = 'Converting...';
+    reader.readAsArrayBuffer(currentFile);
+}
+
+function bidirectionalTextConversion(convertLeftToRight) {
+    var inputElement = convertLeftToRight ? leftTextarea : rightTextarea;
+    var outputElement = convertLeftToRight ? rightTextarea : leftTextarea;
+    var success = function(value) {
+        outputElement.value = value;
+    }
+    var error = function(message) {
+        inputElement.classList.add('errorSource');
+        outputElement.classList.add('errorDestination');
+        outputElement.value = message;
+    }
+    var converter = convertLeftToRight ? asyncToBase64 : asyncFromBase64;
+    converter(inputElement.value, rightConversionType.encoding, success, error);
+}
+
+function onLeftTypeChanged(optionalSkipConversionUpdate) {
+    var selectedValue = leftTypeSelect.options[leftTypeSelect.selectedIndex].value;
+    var newType = LeftConversionTypes[selectedValue];
+    if (newType === leftConversionType)
+        return;
+    if (newType === undefined)
+        throw 'Unknown conversion type: ' + selectedValue;
+    leftConversionType = newType;
+    leftTypeText.textContent = leftConversionType.displayName;
+
+    if (leftConversionType.isImage == leftImageArea.classList.contains('hidden')) {
+        leftImageArea.classList.toggle('hidden');
+        leftTextarea.classList.toggle('hidden');
+    }
+
+    updateRightTypeAfterLeftTypeChange();
+    if (!optionalSkipConversionUpdate)
+        updateConversion();
+}
+
+function onRightTypeChanged(optionalSkipConversionUpdate) {
+    var selectedValue = rightTypeSelect.options[rightTypeSelect.selectedIndex].value;
+    var newType = RightConversionTypes[selectedValue];
+    if (newType === rightConversionType)
+        return;
+    if (newType === undefined)
+        throw 'Unknown conversion type: ' + selectedValue;
+    rightConversionType = newType;
+    rightTypeText.textContent = rightConversionType.displayName;
+    if (rightConversionType.forImage)
+        rightTextarea.setAttribute('readonly', 'readonly');
+    else
+        rightTextarea.removeAttribute('readonly');
+    if (rightConversionType.forImage)
+        userLastChangedRightSide = false;
+    if (!optionalSkipConversionUpdate)
+        updateConversion();
+}
+
+function updateRightTypeAfterLeftTypeChange() {
+    var firstEnabledIndex, firstEnabledType;
+    for (var optionIndex = 0; optionIndex < rightTypeSelect.options.length; optionIndex++) {
+        var option = rightTypeSelect.options[optionIndex];
+        var rightType = RightConversionTypes[option.value];
+        if (rightType === undefined)
+            throw 'Unknown conversion type: ' + selectedValue;
+        var enabled = leftConversionType.isImage === rightType.forImage;
+        option.disabled = !enabled;
+        if (!firstEnabledIndex && !firstEnabledType && enabled) {
+            firstEnabledIndex = optionIndex;
+            firstEnabledType = rightType;
+        }
+    }
+    if (leftConversionType.isImage != rightConversionType.forImage) {
+        rightTypeSelect.selectedIndex = firstEnabledIndex;
+        onRightTypeChanged(true);
+    }
+}
+
+function onDropFiles(files) {
+    if (files.length === 0)
+        return;
+    currentFile = files[0];
+    if (!leftConversionType.isImage) {
+        var leftConversions = Object.keys(LeftConversionTypes);
+        for (var index = 0; index < leftConversions.length; index++) {
+            if (LeftConversionTypes[leftConversions[index]].isImage) {
+                leftTypeSelect.selectedIndex = index;
+                onLeftTypeChanged(true);
+                break;
+            }
+        }
+    }
+    updateConversion();
+}
+
+function imageType(file) {
+    if (file.type !== '')
+        return file.type;
+
+    if (!file.name || file.name.length <= 0)
+        return '';
+    var extension = file.name.substr(file.name.lastIndexOf('.') + 1);
+    switch (extension) {
+        case('bmp'): return 'image/bmp';
+        case('gif'): return 'image/gif';
+        case('jpeg'): return 'image/jpeg';
+        case('jpg'): return 'image/jpeg';
+        case('jpe'): return 'image/jpeg';
+        case('png'): return 'image/png';
+        case('svg'): return 'image/svg+xml';
+        case('svgz'): return 'image/svg+xml';
+        case('webp'): return 'image/webp';
+        case('ico'): return 'image/x-icon';
+    }
+    return '';
+}
+</script>
+
+<script>
+'use strict';
+
+function asyncToBase64(value, encoding, onSuccess, onError) {
+    try {
+        switch (encoding) {
+            case 'ascii':
+                var result = window.btoa(value);
+                onSuccess(result);
+                break;
+            case 'utf8':
+                value = Base64Utils.encodeToUtf8Array(value);
+            case undefined:
+                var result = Base64Utils.uint8ToBase64(value);
+                onSuccess(result);
+                break;
+            case 'base64urlutf8':
+                value = Base64Utils.encodeToUtf8Array(value);
+                var base64Result = Base64Utils.uint8ToBase64(value);
+                var base64urlResult = base64Result.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                onSuccess(base64urlResult);
+                break;
+            case 'base32utf8':
+                // value = Base64Utils.encodeToUtf8Array(value);
+                // console.log(value);
+                // 使用 hi-base32 库进行编码
+                var base32Result = base32.encode(value);
+                onSuccess(base32Result);
+                break;
+            default:
+                onError('Unknown encoding \'' + encoding + '\'.');
+        }
+    } catch (error) {
+        if (error.name === 'InvalidCharacterError') {
+            onError('Couldn\'t convert non-latin1 characters to base64.');
+        } else if (error.message) {
+            onError('Couldn\'t convert to base64 because ' + error.message + '.');
+        } else {
+            onError('Couldn\'t convert to base64 because ' + error + '.');
+        }
+    }
+}
+
+function asyncFromBase64(value, encoding, onSuccess, onError) {
+    try {
+        switch (encoding) {
+            case 'ascii':
+                var result = window.atob(Base64Utils.cleanupBase64(value));
+                onSuccess(result);
+                break;
+            case 'utf8':
+                var utf8ByteArray = Base64Utils.b64ToByteArray(Base64Utils.cleanupBase64(value));
+                var result = Base64Utils.decodeFromUtf8Array(utf8ByteArray);
+                onSuccess(result);
+                break;
+            case 'base64urlutf8':
+                var base64Value = value.replace(/-/g, '+').replace(/_/g, '/');
+                while (base64Value.length % 4 !== 0) {
+                    base64Value += '=';
+                }
+                var utf8ByteArray = Base64Utils.b64ToByteArray(Base64Utils.cleanupBase64(base64Value));
+                var result = Base64Utils.decodeFromUtf8Array(utf8ByteArray);
+                onSuccess(result);
+                break;
+            case 'base32utf8':
+                // 使用 js-base32 库进行解码
+                var result = base32.decode(value);
+                // var result = Base64Utils.decodeFromUtf8Array(byteArray);
+                onSuccess(result);
+                break;
+            default:
+                onError('Unknown encoding \'' + encoding + '\'.');
+        }
+    } catch (error) {
+        if (error.name == 'InvalidCharacterError') {
+            onError('Couldn\'t convert because the base64 decodes to non-latin1 characters.');
+        } else if (error.message) {
+            onError('Couldn\'t convert from base64 because ' + error.message + '.');
+        } else {
+            onError('Couldn\'t convert from base64 because ' + error + '.');
+        }
+    }
+}
+
+function Base64Utils() {
+}
+
+Base64Utils.cleanupBase64 = function(dirty) {
+    dirty = dirty.trim ? dirty.trim() : dirty.replace(/^\s+|\s+$/g, '');
+    var INVALID_BASE64_RE = /[^+\/0-9A-Za-z-_]/g;
+    dirty = dirty.replace(INVALID_BASE64_RE, '');
+
+    if (dirty.length < 2)
+        return '';
+
+    while (dirty.length % 4 !== 0)
+        dirty = dirty + '=';
+
+    return dirty;
+}
+
+Base64Utils.uint8ToBase64 = function(uint8) {
+    var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    var lookup = [];
+    for (var i = 0; i < code.length; i++)
+        lookup[i] = code[i];
+    var revLookup = [];
+    for (i = 0; i < code.length; ++i)
+        revLookup[code.charCodeAt(i)] = i;
+    revLookup['-'.charCodeAt(0)] = 62;
+    revLookup['_'.charCodeAt(0)] = 63;
+    var Arr = (typeof Uint8Array !== 'undefined') ? Uint8Array : Array;
+
+    function decode(elt) {
+        var v = revLookup[elt.charCodeAt(0)];
+        return v !== undefined ? v : -1;
+    }
+
+    function encode(num) {
+        return lookup[num];
+    }
+
+    function tripletToBase64(num) {
+        return encode(num >> 18 & 0x3F) + encode(num >> 12 & 0x3F) + encode(num >> 6 & 0x3F) + encode(num & 0x3F);
+    }
+
+    function encodeChunk(uint8, start, end) {
+        var temp;
+        var output = [];
+        for (var i = start; i < end; i += 3) {
+            temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2]);
+            output.push(tripletToBase64(temp));
+        }
+        return output.join('');
+    }
+
+    var i;
+    var extraBytes = uint8.length % 3;
+    var output = '';
+    var parts = [];
+    var temp, length;
+    var maxChunkLength = 16383;
+
+    for (i = 0, length = uint8.length - extraBytes; i < length; i += maxChunkLength)
+        parts.push(encodeChunk(uint8, i, (i + maxChunkLength) > length ? length : (i + maxChunkLength)));
+
+    switch (extraBytes) {
+        case 1:
+            temp = uint8[uint8.length - 1];
+            output += encode(temp >> 2);
+            output += encode((temp << 4) & 0x3F);
+            output += '==';
+            break;
+        case 2:
+            temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1]);
+            output += encode(temp >> 10);
+            output += encode((temp >> 4) & 0x3F);
+            output += encode((temp << 2) & 0x3F);
+            output += '=';
+            break;
+        default:
+            break;
+    }
+
+    parts.push(output);
+    return parts.join('');
+}
+
+Base64Utils.b64ToByteArray = function(b64) {
+    var code = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    var lookup = [];
+    for (var i = 0; i < code.length; i++)
+        lookup[i] = code[i];
+    var revLookup = [];
+    for (i = 0; i < code.length; ++i)
+        revLookup[code.charCodeAt(i)] = i;
+    revLookup['-'.charCodeAt(0)] = 62;
+    revLookup['_'.charCodeAt(0)] = 63;
+    var Arr = (typeof Uint8Array !== 'undefined') ? Uint8Array : Array;
+
+    function decode(elt) {
+        var v = revLookup[elt.charCodeAt(0)];
+        return v !== undefined ? v : -1;
+    }
+
+    if (b64.length % 4 > 0)
+        throw new Error('the length is not a multiple of 4');
+
+    var len = b64.length;
+    var placeHolders = b64.charAt(len - 2) === '=' ? 2 : b64.charAt(len - 1) === '=' ? 1 : 0;
+
+    var arr = new Arr(b64.length * 3 / 4 - placeHolders);
+
+    var l = placeHolders > 0 ? b64.length - 4 : b64.length;
+
+    var L = 0;
+
+    function push(v) {
+        arr[L++] = v;
+    }
+
+    for (var i = 0, j = 0; i < l; i += 4, j += 3) {
+        var tmp = (decode(b64.charAt(i)) << 18) | (decode(b64.charAt(i + 1)) << 12) | (decode(b64.charAt(i + 2)) << 6) | decode(b64.charAt(i + 3));
+        push((tmp & 0xFF0000) >> 16);
+        push((tmp & 0xFF00) >> 8);
+        push(tmp & 0xFF);
+    }
+
+    if (placeHolders === 2) {
+        var tmp = (decode(b64.charAt(i)) << 2) | (decode(b64.charAt(i + 1)) >> 4);
+        push(tmp & 0xFF);
+    } else if (placeHolders === 1) {
+        var tmp = (decode(b64.charAt(i)) << 10) | (decode(b64.charAt(i + 1)) << 4) | (decode(b64.charAt(i + 2)) >> 2);
+        push((tmp >> 8) & 0xFF);
+        push(tmp & 0xFF);
+    }
+    return arr;
+}
+
+Base64Utils.encodeToUtf8Array = function(str) {
+    function utf8ToBytes(string, units) {
+        units = units || Infinity;
+        var codePoint;
+        var length = string.length;
+        var leadSurrogate = null;
+        var bytes = [];
+
+        for (var i = 0; i < length; i++) {
+            codePoint = string.charCodeAt(i);
+
+            if (codePoint > 0xD7FF && codePoint < 0xE000) {
+                if (leadSurrogate) {
+                    if (codePoint < 0xDC00) {
+                        if ((units -= 3) > -1)
+                            bytes.push(0xEF, 0xBF, 0xBD);
+                        leadSurrogate = codePoint;
+                        continue;
+                    } else {
+                        codePoint = leadSurrogate - 0xD800 << 10 | codePoint - 0xDC00 | 0x10000;
+                        leadSurrogate = null;
+                    }
+                } else {
+                    if (codePoint > 0xDBFF) {
+                        if ((units -= 3) > -1)
+                            bytes.push(0xEF, 0xBF, 0xBD);
+                        continue;
+                    } else if (i + 1 === length) {
+                        if ((units -= 3) > -1)
+                            bytes.push(0xEF, 0xBF, 0xBD);
+                        continue;
+                    } else {
+                        leadSurrogate = codePoint;
+                        continue;
+                    }
+                }
+            } else if (leadSurrogate) {
+                if ((units -= 3) > -1)
+                    bytes.push(0xEF, 0xBF, 0xBD);
+                leadSurrogate = null;
+            }
+
+            if (codePoint < 0x80) {
+                if ((units -= 1) < 0)
+                    break;
+                bytes.push(codePoint);
+            } else if (codePoint < 0x800) {
+                if ((units -= 2) < 0)
+                    break;
+                bytes.push(
+                    codePoint >> 0x6 | 0xC0,
+                    codePoint & 0x3F | 0x80
+                    );
+            } else if (codePoint < 0x10000) {
+                if ((units -= 3) < 0)
+                    break;
+                bytes.push(
+                    codePoint >> 0xC | 0xE0,
+                    codePoint >> 0x6 & 0x3F | 0x80,
+                    codePoint & 0x3F | 0x80
+                    );
+            } else if (codePoint < 0x200000) {
+                if ((units -= 4) < 0)
+                    break;
+                bytes.push(
+                    codePoint >> 0x12 | 0xF0,
+                    codePoint >> 0xC & 0x3F | 0x80,
+                    codePoint >> 0x6 & 0x3F | 0x80,
+                    codePoint & 0x3F | 0x80
+                    );
+            } else {
+                throw new Error('Invalid code point');
+            }
+        }
+        return bytes;
+    }
+
+    var result;
+    if ('undefined' === typeof Uint8Array)
+        result = utf8ToBytes(str);
+    else
+        result = new Uint8Array(utf8ToBytes(str));
+    return result;
+}
+
+Base64Utils.decodeFromUtf8Array = function(bytes) {
+    function utf8Slice(buf, start, end) {
+        var res = '';
+        var tmp = '';
+        end = Math.min(buf.length, end || Infinity);
+        start = start || 0;
+        for (var i = start; i < end; i++) {
+            if (buf[i] <= 0x7F) {
+                res += decodeUtf8Char(tmp) + String.fromCharCode(buf[i]);
+                tmp = '';
+            } else {
+                tmp += '%' + buf[i].toString(16);
+            }
+        }
+        return res + decodeUtf8Char(tmp);
+    }
+
+    function decodeUtf8Char(str) {
+        try {
+            return decodeURIComponent(str);
+        } catch (err) {
+            return String.fromCharCode(0xFFFD);
+        }
+    }
+
+    return utf8Slice(bytes, 0, bytes.length);
+}
+</script>
+<script src="/floating-ball/load-floating-ball.js"></script>
+</body>
+</html>
+    

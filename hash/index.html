@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>哈希值计算器</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 导入CryptoJS库 -->
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <!-- 导入CRC库 -->
+    <script src="https://cdn.jsdelivr.net/npm/js-crc@0.3.1/build/crc.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.js"></script>
+</head>
+<body>
+
+<div id="container" class="container-fluid">
+
+    <!-- 输入区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">文本输入</h3>
+            <textarea rows="2" id="text-input" class="form-control text-input" placeholder="输入文本并查看哈希值..."></textarea>
+        </div>
+    </div>
+
+    <!-- 文件上传区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">或上传文件</h3>
+            <input type="file" id="file-input" class="form-control-file">
+            <div id="file-info" class="mt-2 text-muted"></div>
+        </div>
+    </div>
+
+    <!-- MD5区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">MD5</h3>
+            <pre id="md5-output" class="hash-output"> </pre>
+        </div>
+    </div>
+
+    <!-- SHA-1区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">SHA-1</h3>
+            <pre id="sha1-output" class="hash-output"> </pre>
+        </div>
+    </div>
+
+    <!-- SHA-256区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">SHA-256</h3>
+            <pre id="sha256-output" class="hash-output"> </pre>
+        </div>
+    </div>
+
+    <!-- SHA-512区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">SHA-512</h3>
+            <pre id="sha512-output" class="hash-output"> </pre>
+        </div>
+    </div>
+
+    <!-- CRC-32区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">CRC-32</h3>
+            <pre id="crc32-output" class="hash-output"> </pre>
+        </div>
+    </div>
+
+    <!-- CRC-16区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <h3 class="hash-heading">CRC-16</h3>
+            <pre id="crc16-output" class="hash-output"> </pre>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // 页面加载完成后执行
+    $(document).ready(function() {
+        // 获取DOM元素
+        const textInput = $('#text-input');
+        const fileInput = $('#file-input');
+        const fileInfo = $('#file-info');
+        const md5Output = $('#md5-output');
+        const sha1Output = $('#sha1-output');
+        const sha256Output = $('#sha256-output');
+        const sha512Output = $('#sha512-output');
+        const crc32Output = $('#crc32-output');
+        const crc16Output = $('#crc16-output');
+
+        // 当前处理的数据源（text或file）
+        let currentSource = 'text';
+
+        // 初始化显示
+        updateHashDisplay('(无输入)');
+
+        // 监听文本输入变化
+        textInput.on('input', function() {
+            currentSource = 'text';
+            calculateTextHashes();
+        });
+
+        // 监听文件选择
+        fileInput.on('change', handleFileSelect);
+
+        // 处理文件选择
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            currentSource = 'file';
+            fileInfo.text(`已选择文件: ${file.name} (${formatFileSize(file.size)})`);
+            calculateFileHashes(file);
+        }
+
+        // 计算文本哈希值
+        function calculateTextHashes() {
+            const inputText = textInput.val() || '';
+
+            if (inputText.trim() === '') {
+                updateHashDisplay('(空输入)');
+                return;
+            }
+
+            // 计算各种哈希值
+            const md5Hash = CryptoJS.MD5(inputText).toString();
+            const sha1Hash = CryptoJS.SHA1(inputText).toString();
+            const sha256Hash = CryptoJS.SHA256(inputText).toString();
+            const sha512Hash = CryptoJS.SHA512(inputText).toString();
+            const crc32Hash = crc32(inputText);
+            // console.log(crc32(inputText));
+            const crc16Hash = crc16(inputText);
+
+            // 更新显示
+            updateHashDisplay(md5Hash, sha1Hash, sha256Hash, sha512Hash, crc32Hash, crc16Hash);
+        }
+
+        // 计算文件哈希值
+        function calculateFileHashes(file) {
+            // 显示加载状态
+            updateHashDisplay('(计算中...)');
+
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                try {
+                    const fileData = event.target.result;
+
+                    // 将ArrayBuffer转换为WordArray，供CryptoJS使用
+                    const wordArray = CryptoJS.lib.WordArray.create(fileData);
+
+                    // 计算各种哈希值
+                    const md5Hash = CryptoJS.MD5(wordArray).toString();
+                    const sha1Hash = CryptoJS.SHA1(wordArray).toString();
+                    const sha256Hash = CryptoJS.SHA256(wordArray).toString();
+                    const sha512Hash = CryptoJS.SHA512(wordArray).toString();
+                    
+                    // 创建Uint8Array视图
+                    const uint8Array = new Uint8Array(fileData);
+                    
+                    // 计算CRC-32
+                    const crc32Hash = crc32(uint8Array);
+                    
+                    // 计算CRC-16
+                    const crc16Hash = crc16(uint8Array);
+
+                    // 更新显示
+                    updateHashDisplay(md5Hash, sha1Hash, sha256Hash, sha512Hash, crc32Hash, crc16Hash);
+                } catch (error) {
+                    console.error('计算哈希值时出错:', error);
+                    updateHashDisplay('(计算失败)', '(计算失败)', '(计算失败)', '(计算失败)', '(计算失败)', '(计算失败)');
+                }
+            };
+
+            reader.onerror = function() {
+                updateHashDisplay('(读取文件失败)', '(读取文件失败)', '(读取文件失败)', '(读取文件失败)', '(读取文件失败)', '(读取文件失败)');
+            };
+
+            // 以ArrayBuffer格式读取文件，支持二进制文件
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 更新哈希值显示
+        function updateHashDisplay(md5, sha1, sha256, sha512, crc32, crc16) {
+            md5Output.text(md5 || '(无数据)');
+            sha1Output.text(sha1 || md5 || '(无数据)');
+            sha256Output.text(sha256 || md5 || '(无数据)');
+            sha512Output.text(sha512 || md5 || '(无数据)');
+            crc32Output.text(crc32 || md5 || '(无数据)');
+            crc16Output.text(crc16 || md5 || '(无数据)');
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    });
+</script>
+<script src="/floating-ball/load-floating-ball.js"></script>
+</body>
+</html>
