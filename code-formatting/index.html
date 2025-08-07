@@ -3,594 +3,681 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多语言代码高亮与格式化工具</title>
-    <!-- Highlight.js 核心样式 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
-    <!-- js_beautify 格式化库 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-html.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-css.min.js"></script>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #2c3e50);
-            color: #ecf0f1;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        header {
-            text-align: center;
-            padding: 30px 0;
-            margin-bottom: 30px;
-        }
-        h1 {
-            font-size: 2.8rem;
-            margin-bottom: 15px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .tool-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-        .input-section, .output-section {
-            flex: 1;
-            min-width: 300px;
-            background: rgba(30, 30, 46, 0.7);
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .section-title {
-            font-size: 1.4rem;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .section-title i {
-            color: #3498db;
-        }
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        select, button {
-            padding: 12px 18px;
-            border-radius: 8px;
-            border: none;
-            background: #34495e;
-            color: white;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 150px;
-        }
-        select {
-            background-size: 16px;
-            padding-right: 40px;
-            appearance: none;
-        }
-        button {
-            background: #3498db;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        button:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        button.secondary {
-            background: #9b59b6;
-        }
-        button.secondary:hover {
-            background: #8e44ad;
-        }
-        textarea {
-            width: 100%;
-            height: 300px;
-            padding: 18px;
-            border-radius: 8px;
-            background: #2c3e50;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-            font-family: 'Fira Code', 'Consolas', monospace;
-            font-size: 15px;
-            resize: vertical;
-            margin-bottom: 15px;
-        }
-        .output {
-            background: #1e1e2e;
-            border-radius: 8px;
-            padding: 20px;
-            overflow: auto;
-            height: 300px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            position: relative;
-        }
+    <title>在线编码转换工具</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
-        /* 行号样式 */
-        .line-numbers {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 40px;
-            padding: 20px 5px;
-            text-align: right;
-            background: #2c3e50;
-            border-right: 1px solid #555;
-            color: #999;
-            user-select: none;
-            font-family: monospace;
-            line-height: 1.5;
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#00B42A',
+                        danger: '#F53F3F',
+                        warning: '#FF7D00',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
         }
+    </script>
 
-        .code-container {
-            position: relative;
-            padding-left: 45px; /* 为行号留出空间 */
-        }
-
-        .hljs {
-            background: transparent !important;
-            padding: 0 !important;
-        }
-
-        /* 设置区样式 */
-        .settings-container {
-            background: rgba(30, 30, 46, 0.7);
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 25px;
-        }
-        
-        .settings-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .settings-title {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: #3498db;
-        }
-        
-        .theme-selector {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .theme-btn {
-            padding: 10px 15px;
-            border-radius: 6px;
-            background: #2c3e50;
-            border: none;
-            color: white;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex: 1;
-            min-width: 120px;
-        }
-        
-        .theme-btn:hover {
-            transform: scale(1.05);
-        }
-        
-        .theme-btn.active {
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5);
-        }
-        
-        footer {
-            text-align: center;
-            padding: 30px 0;
-            margin-top: 20px;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-        
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin: 40px 0;
-        }
-        
-        .feature-card {
-            background: rgba(30, 30, 46, 0.7);
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .feature-card h3 {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: #3498db;
-        }
-        
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #27ae60;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-            transform: translateY(-100%);
-            opacity: 0;
-            transition: all 0.3s ease;
-            z-index: 100;
-        }
-        
-        .notification.show {
-            transform: translateY(0);
-            opacity: 1;
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+            .box-shadow-hover {
+                box-shadow: 0 4px 12px rgba(22, 93, 255, 0.15);
+            }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>多语言代码高亮与格式化工具</h1>
-        </header>
-        
-        <div class="tool-container">
-            <div class="input-section">
-                <div class="section-title">
-                    <i class="fas fa-code"></i>
-                    <h2>输入代码</h2>
-                </div>
-                <div class="controls">
-                    <select id="language-select">
-                        <option value="auto" selected>自动检测</option>
-                        <option value="javascript">JavaScript</option>
-                        <option value="python">Python</option>
-                        <option value="java">Java</option>
-                        <option value="cpp">C++</option>
-                        <option value="csharp">C#</option>
-                        <option value="php">PHP</option>
-                        <option value="sql">SQL</option>
-                        <option value="json">JSON</option>
-                    </select>
-                    <button id="format-btn">
-                        <i class="fas fa-indent"></i>
-                        格式化代码
-                    </button>
-                </div>
-                <textarea id="code-input" placeholder="在此粘贴代码..."></textarea>
+<body class="bg-gray-50 font-inter text-dark min-h-screen flex flex-col">
+    <!-- 导航栏 -->
+    <header class="bg-white shadow-sm z-10">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-exchange text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-primary">在线编码转换工具</h1>
             </div>
-            
-            <div class="output-section">
-                <div class="section-title">
-                    <i class="fas fa-highlighter"></i>
-                    <h2>高亮结果</h2>
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-all duration-200">
+                    <i class="fa fa-moon-o text-gray-600"></i>
+                </button>
+                <button id="copy-all" class="hidden md:flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm">
+                    <i class="fa fa-copy mr-2"></i>复制全部结果
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <!-- 介绍区域 -->
+        <div class="mb-8 text-center">
+            <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-dark mb-2">多功能编码转换工具</h2>
+        </div>
+
+        <!-- 转换区域 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 transform hover:shadow-xl transition-all duration-300">
+            <!-- 文本框区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- 左侧原文 -->
+                <div class="lg:col-span-5 flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-lg">原文</h3>
+                        <div class="flex space-x-2">
+                            <button id="clear-left" class="p-2 text-gray-500 hover:text-danger transition-colors duration-200">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
+                            <button id="copy-left" class="p-2 text-gray-500 hover:text-primary transition-colors duration-200">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                            <button id="paste-left" class="p-2 text-gray-500 hover:text-secondary transition-colors duration-200">
+                                <i class="fa fa-paste"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="source-text" rows="35" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder="请输入需要转换的文本..."></textarea>
+                    <div class="mt-2 text-sm text-gray-500 flex justify-between">
+                        <span id="source-length">0 个字符</span>
+                        <button id="swap-text" class="text-primary hover:text-primary/80 transition-colors duration-200">
+                            <i class="fa fa-exchange mr-1"></i> 交换文本
+                        </button>
+                    </div>
                 </div>
-                <div class="controls">
-                    <button id="copy-btn" class="secondary">
-                        <i class="fas fa-copy"></i>
-                        复制到剪贴板
+
+                <!-- 中间按钮区域 -->
+                <div class="lg:col-span-2 flex flex-col items-center justify-center space-y-3">
+                    <button id="auto-decode" class="w-full flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-magic mr-2"></i>自动解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="url-encode" class="w-full flex items-center justify-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-link mr-2"></i>URL编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="url-decode" class="w-full flex items-center justify-center px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-unlink mr-2"></i>URL解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="unicode-encode" class="w-full flex items-center justify-center px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-language mr-2"></i>Unicode编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="unicode-decode" class="w-full flex items-center justify-center px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger/90 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-language mr-2"></i>Unicode解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="hex-html-encode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>16进制HTML实体编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="hex-html-decode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>16进制HTML实体解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="dec-html-encode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-400 text-white rounded-lg hover:bg-amber-500 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>10进制HTML实体编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="dec-html-decode" class="w-full flex items-center justify-center px-4 py-2 bg-amber-300 text-white rounded-lg hover:bg-amber-400 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>10进制HTML实体解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="escape-encode" class="w-full flex items-center justify-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-shield mr-2"></i>Escape编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="escape-decode" class="w-full flex items-center justify-center px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-unlock mr-2"></i>Escape解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="utf8-encode" class="w-full flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>UTF-8编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="utf8-decode" class="w-full flex items-center justify-center px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-code mr-2"></i>UTF-8解码 <i class="fa fa-arrow-left ml-2"></i>
+                    </button>
+                    <button id="ascii-encode" class="w-full flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-keyboard-o mr-2"></i>ASCII编码 <i class="fa fa-arrow-right ml-2"></i>
+                    </button>
+                    <button id="ascii-decode" class="w-full flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all duration-200 shadow-sm">
+                        <i class="fa fa-keyboard-o mr-2"></i>ASCII解码 <i class="fa fa-arrow-left ml-2"></i>
                     </button>
                 </div>
-                <div class="output">
-                    <div class="line-numbers" id="line-numbers"></div>
-                    <div class="code-container">
-                        <pre><code id="code-output"></code></pre>
+
+                <!-- 右侧结果 -->
+                <div class="lg:col-span-5 flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-lg">转换结果</h3>
+                        <div class="flex space-x-2">
+                            <button id="clear-right" class="p-2 text-gray-500 hover:text-danger transition-colors duration-200">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
+                            <button id="copy-right" class="p-2 text-gray-500 hover:text-primary transition-colors duration-200">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                            <button id="paste-right" class="p-2 text-gray-500 hover:text-secondary transition-colors duration-200">
+                                <i class="fa fa-paste"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="result-text" rows="35" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 resize-none" placeholder="转换结果将显示在这里..." ></textarea>
+                    <div class="mt-2 text-sm text-gray-500">
+                        <span id="result-length">0 个字符</span>
                     </div>
                 </div>
             </div>
         </div>
-        
-        
-        <!-- 设置区 - 移至底部 -->
-        <div class="settings-container">
-            <div class="settings-title">格式化设置</div>
-            
-            <div class="settings-group">
-                <select id="indent-size">
-                    <option value="2">缩进大小: 2 空格</option>
-                    <option value="4" selected>缩进大小: 4 空格</option>
-                    <option value="8">缩进大小: 8 空格</option>
-                    <option value="tab">缩进类型: Tab</option>
-                </select>
-                <select id="wrap-line-length">
-                    <option value="0">不换行</option>
-                    <option value="80" selected>换行长度: 80 字符</option>
-                    <option value="100">换行长度: 100 字符</option>
-                    <option value="120">换行长度: 120 字符</option>
-                </select>
-                <select id="end-with-newline">
-                    <option value="false">结尾不添加空行</option>
-                    <option value="true" selected>结尾添加空行</option>
-                </select>
-            </div>
-            
-            <div class="settings-group">
-                <select id="indent-with-tabs">
-                    <option value="false" selected>使用空格缩进</option>
-                    <option value="true">使用制表符缩进</option>
-                </select>
-                <select id="preserve-newlines">
-                    <option value="false">合并所有换行符</option>
-                    <option value="true" selected>保留换行符</option>
-                </select>
-                <select id="max-preserve-newlines">
-                    <option value="0">不限制连续空行数</option>
-                    <option value="1" selected>最多1个连续空行</option>
-                    <option value="2">最多2个连续空行</option>
-                    <option value="3">最多3个连续空行</option>
-                </select>
-            </div>
-            
-            <div class="settings-group">
-                <select id="space-in-paren">
-                    <option value="false" selected>括号内不留空格 (function(a, b))</option>
-                    <option value="true">括号内留空格 (function( a, b ))</option>
-                </select>
-                <select id="space-in-empty-paren">
-                    <option value="false" selected>空括号不留空格 ()</option>
-                    <option value="true">空括号留空格 ( )</option>
-                </select>
-                <select id="jslint-happy">
-                    <option value="false" selected>标准格式</option>
-                    <option value="true">JSLint 兼容格式</option>
-                </select>
-            </div>
-            
-            <div class="settings-group">
-                <select id="brace-style">
-                    <option value="collapse" selected>K&R 风格 (if() { ... })</option>
-                    <option value="expand">Allman 风格 (if()\n{\n ...\n})</option>
-                    <option value="end-expand">Pico 风格 (if() {\n ...\n})</option>
-                    <option value="collapse-preserve-inline">保留内联大括号</option>
-                    <option value="none">不处理大括号</option>
-                </select>
-                <select id="break-chained-methods">
-                    <option value="false" selected>链式方法不换行</option>
-                    <option value="true">链式方法换行</option>
-                </select>
-                <select id="keep-array-indentation">
-                    <option value="false" selected>不保留数组缩进</option>
-                    <option value="true">保留数组缩进</option>
-                </select>
-            </div>
-            
-            <div class="settings-group">
-                <select id="unescape-strings">
-                    <option value="false" selected>不转义字符串</option>
-                    <option value="true">转义字符串</option>
-                </select>
-                <select id="e4x">
-                    <option value="false" selected>不保留E4X标签</option>
-                    <option value="true">保留E4X标签</option>
-                </select>
-                <select id="comma-first">
-                    <option value="false" selected>逗号放后面</option>
-                    <option value="true">逗号放前面</option>
-                </select>
-            </div>
-            
-            <div class="settings-title">主题选择</div>
-            <div class="theme-selector">
-                <button class="theme-btn active" data-theme="github-dark">GitHub 暗色</button>
-                <button class="theme-btn" data-theme="vs">Visual Studio</button>
-                <button class="theme-btn" data-theme="atom-one-dark">Atom Dark</button>
-                <button class="theme-btn" data-theme="solarized-dark">Solarized</button>
-                <button class="theme-btn" data-theme="monokai">Monokai</button>
-                <button class="theme-btn" data-theme="dracula">Dracula</button>
-            </div>
-        </div>
-        
-        <div class="notification" id="notification">
-            <i class="fas fa-check-circle"></i> 已复制到剪贴板
-        </div>
-    </div>
 
-    <!-- Highlight.js 核心库 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
-    <!-- 添加额外语言支持 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/java.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/cpp.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/csharp.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/php.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/sql.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/json.min.js"></script>
+    </main>
+
+
+    <!-- 通知组件 -->
+    <div id="notification" class="fixed top-4 right-4 p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 max-w-sm hidden"></div>
 
     <script>
-        // 初始化 Highlight.js
-        hljs.highlightAll();
-
-        // DOM 元素
-        const codeInput = document.getElementById('code-input');
-        const codeOutput = document.getElementById('code-output');
-        const languageSelect = document.getElementById('language-select');
-        const formatBtn = document.getElementById('format-btn');
-        const copyBtn = document.getElementById('copy-btn');
-        const themeBtns = document.querySelectorAll('.theme-btn');
-        const lineNumbers = document.getElementById('line-numbers');
-        const notification = document.getElementById('notification');
-        
-        // 格式化设置
-        const indentSize = document.getElementById('indent-size');
-        const wrapLineLength = document.getElementById('wrap-line-length');
-        const endWithNewline = document.getElementById('end-with-newline');
-        const indentWithTabs = document.getElementById('indent-with-tabs');
-        const preserveNewlines = document.getElementById('preserve-newlines');
-        const maxPreserveNewlines = document.getElementById('max-preserve-newlines');
-        const spaceInParen = document.getElementById('space-in-paren');
-        const spaceInEmptyParen = document.getElementById('space-in-empty-paren');
-        const jslintHappy = document.getElementById('jslint-happy');
-        const braceStyle = document.getElementById('brace-style');
-        const breakChainedMethods = document.getElementById('break-chained-methods');
-        const keepArrayIndentation = document.getElementById('keep-array-indentation');
-        const unescapeStrings = document.getElementById('unescape-strings');
-        const e4x = document.getElementById('e4x');
-        const commaFirst = document.getElementById('comma-first');
-
-        // 格式化代码
-        function formatCode(code) {
-            // 获取格式化设置
-            const options = {
-                indent_size: indentSize.value === 'tab' ? 'tab' : parseInt(indentSize.value, 10),
-                wrap_line_length: parseInt(wrapLineLength.value, 10),
-                end_with_newline: endWithNewline.value === 'true',
-                indent_with_tabs: indentWithTabs.value === 'true',
-                preserve_newlines: preserveNewlines.value === 'true',
-                max_preserve_newlines: parseInt(maxPreserveNewlines.value, 10),
-                space_in_paren: spaceInParen.value === 'true',
-                space_in_empty_paren: spaceInEmptyParen.value === 'true',
-                jslint_happy: jslintHappy.value === 'true',
-                brace_style: braceStyle.value,
-                break_chained_methods: breakChainedMethods.value === 'true',
-                keep_array_indentation: keepArrayIndentation.value === 'true',
-                unescape_strings: unescapeStrings.value === 'true',
-                e4x: e4x.value === 'true',
-                comma_first: commaFirst.value === 'true'
-            };
-            
-            try {
-                // 尝试自动检测语言并格式化
-                if (languageSelect.value === 'json' || (languageSelect.value === 'auto' && isJSON(code))) {
-                    // JSON 格式化
-                    return JSON.stringify(JSON.parse(code), null, options.indent_size === 'tab' ? '\t' : options.indent_size);
-                } else if (languageSelect.value === 'javascript' || languageSelect.value === 'auto') {
-                    // JavaScript 格式化
-                    return js_beautify(code, options);
-                } else if (languageSelect.value === 'html' || languageSelect.value === 'auto') {
-                    // HTML 格式化
-                    return html_beautify(code, options);
-                } else if (languageSelect.value === 'css' || languageSelect.value === 'auto') {
-                    // CSS 格式化
-                    return css_beautify(code, options);
-                } else {
-                    // 对于不支持的语言，使用 js_beautify 进行通用格式化
-                    return js_beautify(code, options);
-                }
-            } catch (e) {
-                // 如果格式化失败，返回错误信息和原始代码
-                return `// 格式化错误:\n// ${e.message}\n\n${code}`;
-            }
-        }
-        
-        // 检查是否为 JSON
-        function isJSON(str) {
-            try {
-                JSON.parse(str);
-                return true;
-            } catch (e) {
-                return false;
-            }
-        }
-        
-        // 应用语法高亮
-        function applyHighlight(code) {
-            const selectedLanguage = languageSelect.value;
-
-            if (selectedLanguage === 'auto') {
-                // 自动检测语言
-                const result = hljs.highlightAuto(code);
-                codeOutput.innerHTML = result.value;
-            } else {
-                // 指定语言高亮
-                const result = hljs.highlight(code, {
-                    language: selectedLanguage,
-                    ignoreIllegals: true
-                });
-                codeOutput.innerHTML = result.value;
-            }
-
-            // 生成行号
-            const lines = code.split('\n').length;
-            let lineNumbersHTML = '';
-            for (let i = 1; i <= lines; i++) {
-                lineNumbersHTML += `<div>${i}</div>`;
-            }
-            lineNumbers.innerHTML = lineNumbersHTML;
-        }
-
-        // 格式化并高亮代码
-        formatBtn.addEventListener('click', () => {
-            const code = codeInput.value;
-            
-            // 先格式化代码
-            const formattedCode = formatCode(code);
-            
-            // 只更新输出框，不修改输入框内容
-            codeOutput.textContent = formattedCode;
-            
-            // 应用语法高亮
-            applyHighlight(formattedCode);
-        });
-
-        // 复制到剪贴板
-        copyBtn.addEventListener('click', () => {
-            const textArea = document.createElement('textarea');
-            textArea.value = codeOutput.innerText;
+        // 传统复制方法（使用 textarea 和 execCommand）
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
             document.body.appendChild(textArea);
+            textArea.focus();
             textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
+
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification('文本复制成功！');
+                } else {
+                    throw new Error('execCommand 复制失败');
+                }
+            } catch (err) {
+                console.error('复制失败:', err);
+                showNotification('复制失败，请手动复制', false);
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // 获取DOM元素
+        const sourceText = document.getElementById('source-text');
+        const resultText = document.getElementById('result-text');
+        const sourceLength = document.getElementById('source-length');
+        const resultLength = document.getElementById('result-length');
+        const notification = document.getElementById('notification');
+
+        // 更新字符计数
+        function updateCharCount() {
+            sourceLength.textContent = `${sourceText.value.length} 个字符`;
+            resultLength.textContent = `${resultText.value.length} 个字符`;
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'success') {
+            // 设置通知样式
+            let bgColor, textColor, icon;
+            switch(type) {
+                case 'success':
+                    bgColor = 'bg-secondary';
+                    textColor = 'text-white';
+                    icon = 'fa-check-circle';
+                    break;
+                case 'error':
+                    bgColor = 'bg-danger';
+                    textColor = 'text-white';
+                    icon = 'fa-exclamation-circle';
+                    break;
+                case 'info':
+                    bgColor = 'bg-primary';
+                    textColor = 'text-white';
+                    icon = 'fa-info-circle';
+                    break;
+                case 'warning':
+                    bgColor = 'bg-warning';
+                    textColor = 'text-white';
+                    icon = 'fa-exclamation-triangle';
+                    break;
+                default:
+                    bgColor = 'bg-gray-800';
+                    textColor = 'text-white';
+                    icon = 'fa-info-circle';
+            }
+
+            // 清除任何现有的过渡结束事件监听器
+            const oldOnTransitionEnd = notification.ontransitionend;
+            if (oldOnTransitionEnd) {
+                notification.removeEventListener('transitionend', oldOnTransitionEnd);
+            }
+
+            // 创建通知内容
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 max-w-sm ${bgColor} ${textColor}`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fa ${icon} mr-3 text-lg"></i>
+                    <span>${message}</span>
+                </div>
+            `;
 
             // 显示通知
-            notification.classList.add('show');
             setTimeout(() => {
-                notification.classList.remove('show');
-            }, 2000);
-        });
+                notification.classList.remove('translate-x-full');
+                notification.classList.remove('hidden');
+            }, 10);
 
-        // 主题切换功能
-        themeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const theme = btn.getAttribute('data-theme');
+            // 3秒后隐藏通知
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                
+                // 过渡结束后完全隐藏元素
+                const handleTransitionEnd = function() {
+                    if (notification.classList.contains('translate-x-full')) {
+                        notification.classList.add('hidden');
+                    }
+                    notification.removeEventListener('transitionend', handleTransitionEnd);
+                };
+                
+                notification.addEventListener('transitionend', handleTransitionEnd);
+            }, 3000);
+        }
 
-                // 更新主题样式
-                const themeLink = `https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/${theme}.min.css`;
-                document.querySelector('link[href*="highlight.js"]').href = themeLink;
+        // 通用复制函数，带fallback机制
+        function copyToClipboard(text) {
+            // 检查是否有文本可复制
+            if (!text) {
+                showNotification('没有可复制的内容', 'info');
+                return;
+            }
 
-                // 更新活动按钮状态
-                themeBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+            // 优先使用现代Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        showNotification('文本已复制到剪贴板', 'success');
+                    })
+                    .catch(err => {
+                        console.error('Clipboard API 复制失败，使用fallback:', err);
+                        // 失败时使用fallback方法
+                        fallbackCopyText(text);
+                    });
+            } else {
+                // 不支持Clipboard API时直接使用fallback方法
+                fallbackCopyText(text);
+            }
+        }
+
+        // 编码/解码函数
+        const encoders = {
+            // URL编码
+            'url-encode': (text) => {
+                try {
+                    return encodeURIComponent(text);
+                } catch (e) {
+                    showNotification('URL编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // URL解码
+            'url-decode': (text) => {
+                try {
+                    return decodeURIComponent(text);
+                } catch (e) {
+                    showNotification('URL解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Unicode编码
+            'unicode-encode': (text) => {
+                try {
+                    return text.replace(/[\s\S]/g, (char) => {
+                        const code = char.charCodeAt(0);
+                        if (code < 128) {
+                            return char; // 保留ASCII字符
+                        }
+                        return `\\u${code.toString(16).padStart(4, '0')}`;
+                    });
+                } catch (e) {
+                    showNotification('Unicode编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Unicode解码
+            'unicode-decode': (text) => {
+                try {
+                    return text.replace(/\\u([0-9A-Fa-f]{4})/g, (match, hex) => {
+                        return String.fromCharCode(parseInt(hex, 16));
+                    });
+                } catch (e) {
+                    showNotification('Unicode解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 16进制HTML实体编码
+            'hex-html-encode': (text) => {
+                try {
+                    return text.replace(/[\s\S]/g, (char) => {
+                        const code = char.charCodeAt(0);
+                        if (code < 128) {
+                            return char; // 保留ASCII字符
+                        }
+                        return `&#x${code.toString(16).toLowerCase()};`;
+                    });
+                } catch (e) {
+                    showNotification('16进制HTML实体编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 16进制HTML实体解码
+            'hex-html-decode': (text) => {
+                try {
+                    return text.replace(/&#x([\da-fA-F]+);/g, (match, hex) => {
+                        return String.fromCodePoint(parseInt(hex, 16));
+                    });
+                } catch (e) {
+                    showNotification('16进制HTML实体解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 10进制HTML实体编码
+            'dec-html-encode': (text) => {
+                try {
+                    return text.replace(/[\s\S]/g, (char) => {
+                        const code = char.charCodeAt(0);
+                        if (code < 128) {
+                            return char; // 保留ASCII字符
+                        }
+                        return `&#${code};`;
+                    });
+                } catch (e) {
+                    showNotification('10进制HTML实体编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 10进制HTML实体解码
+            'dec-html-decode': (text) => {
+                try {
+                    return text.replace(/&#(\d+);/g, (match, code) => {
+                        return String.fromCodePoint(parseInt(code, 10));
+                    });
+                } catch (e) {
+                    showNotification('10进制HTML实体解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Escape编码
+            'escape-encode': (text) => {
+                try {
+                    return escape(text);
+                } catch (e) {
+                    showNotification('Escape编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // Escape解码
+            'escape-decode': (text) => {
+                try {
+                    return unescape(text);
+                } catch (e) {
+                    showNotification('Escape解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // UTF-8编码
+            'utf8-encode': (text) => {
+                try {
+                    const encoder = new TextEncoder();
+                    const bytes = encoder.encode(text);
+                    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join(' ');
+                } catch (e) {
+                    showNotification('UTF-8编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // UTF-8解码
+            'utf8-decode': (text) => {
+                try {
+                    const hexArray = text.trim().split(/\s+/);
+                    const bytes = new Uint8Array(hexArray.map(hex => parseInt(hex, 16)));
+                    const decoder = new TextDecoder();
+                    return decoder.decode(bytes);
+                } catch (e) {
+                    showNotification('UTF-8解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // ASCII编码
+            'ascii-encode': (text) => {
+                try {
+                    return text.split('').map(char => {
+                        const code = char.charCodeAt(0);
+                        if (code > 127) {
+                            return `?`; // ASCII只能表示0-127
+                        }
+                        return code.toString();
+                    }).join(' ');
+                } catch (e) {
+                    showNotification('ASCII编码失败', 'error');
+                    return text;
+                }
+            },
+
+            // ASCII解码
+            'ascii-decode': (text) => {
+                try {
+                    return text.trim().split(/\s+/).map(code => {
+                        const num = parseInt(code, 10);
+                        if (isNaN(num) || num < 0 || num > 127) {
+                            return '�'; // 无效字符
+                        }
+                        return String.fromCharCode(num);
+                    }).join('');
+                } catch (e) {
+                    showNotification('ASCII解码失败', 'error');
+                    return text;
+                }
+            },
+
+            // 自动解码
+            'auto-decode': (text) => {
+                try {
+                    // 检测16进制HTML实体编码: &#x字符; 格式
+                    if (/&#x[\da-fA-F]+;/.test(text)) {
+                        return encoders['hex-html-decode'](text);
+                    }
+
+                    // 检测10进制HTML实体编码: &#数字; 格式
+                    if (/&#\d+;/.test(text)) {
+                        return encoders['dec-html-decode'](text);
+                    }
+
+                    // 检测Unicode编码: \u字符 格式
+                    if (/\\u[\da-fA-F]{4}/.test(text)) {
+                        return encoders['unicode-decode'](text);
+                    }
+
+                    // 检测UTF-8编码: 两个或三个16进制数一组
+                    if (/^(?:[0-9A-Fa-f]{2} )+[0-9A-Fa-f]{2}$/.test(text.trim())) {
+                        return encoders['utf8-decode'](text);
+                    }
+
+                    // 检测ASCII编码: 数字空格格式
+                    if (/^\d+( \d+)*$/.test(text.trim())) {
+                        return encoders['ascii-decode'](text);
+                    }
+
+                    // 检测URL编码
+                    try {
+                        const decoded = decodeURIComponent(text);
+                        if (decoded !== text) {
+                            return decoded;
+                        }
+                    } catch (e) {
+                        // 不是URL编码
+                    }
+
+                    // 检测Escape编码: %xx 或 %uxxxx 格式
+                    if (/%[0-9A-Fa-f]{2}|%u[0-9A-Fa-f]{4}/.test(text)) {
+                        return encoders['escape-decode'](text);
+                    }
+
+                    showNotification('无法识别编码格式，使用原始文本', 'warning');
+                    return text;
+                } catch (e) {
+                    showNotification('自动解码失败，尝试其他方式', 'error');
+                    return text;
+                }
+            }
+        };
+
+        // 处理编码/解码按钮点击
+        document.querySelectorAll('button[id$="-encode"], button[id$="-decode"], #auto-decode').forEach(button => {
+            button.addEventListener('click', () => {
+                const action = button.id;
+                let source, result;
+
+                // 确定源文本和结果文本框
+                if (action.endsWith('-encode')) {
+                    source = sourceText.value;
+                    result = encoders[action](source);
+                    resultText.value = result;
+                } else {
+                    // 所有解码操作（包括自动解码）都从右到左
+                    source = resultText.value;
+                    result = encoders[action](source);
+                    sourceText.value = result;
+                }
+
+                updateCharCount();
+
+                // 添加动画效果
+                const targetElement = action.endsWith('-encode') ? resultText : sourceText;
+                targetElement.classList.add('ring-2', 'ring-secondary');
+                setTimeout(() => {
+                    targetElement.classList.remove('ring-2', 'ring-secondary');
+                }, 500);
+
+                showNotification(`${button.textContent.trim()} 成功`, 'success');
             });
         });
 
-        // 初始高亮示例代码
-        formatBtn.click();
+        // 交换文本按钮
+        document.getElementById('swap-text').addEventListener('click', () => {
+            const temp = sourceText.value;
+            sourceText.value = resultText.value;
+            resultText.value = temp;
+            updateCharCount();
+            showNotification('文本已交换', 'info');
+        });
+
+        // 清空按钮
+        document.getElementById('clear-left').addEventListener('click', () => {
+            sourceText.value = '';
+            updateCharCount();
+            showNotification('原文已清空', 'info');
+        });
+
+        document.getElementById('clear-right').addEventListener('click', () => {
+            resultText.value = '';
+            updateCharCount();
+            showNotification('结果已清空', 'info');
+        });
+
+        // 复制按钮 - 使用新的复制函数
+        document.getElementById('copy-left').addEventListener('click', () => {
+            copyToClipboard(sourceText.value);
+        });
+
+        document.getElementById('copy-right').addEventListener('click', () => {
+            copyToClipboard(resultText.value);
+        });
+
+        document.getElementById('copy-all').addEventListener('click', () => {
+            const allText = `原文:\n${sourceText.value}\n\n结果:\n${resultText.value}`;
+            copyToClipboard(allText);
+        });
+
+        // 粘贴按钮
+        document.getElementById('paste-left').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                sourceText.value = text;
+                updateCharCount();
+                showNotification('已从剪贴板粘贴', 'success');
+            } catch (err) {
+                showNotification('粘贴失败', 'error');
+            }
+        });
+
+        document.getElementById('paste-right').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                resultText.value = text;
+                updateCharCount();
+                showNotification('已从剪贴板粘贴', 'success');
+            } catch (err) {
+                showNotification('粘贴失败', 'error');
+            }
+        });
+
+        // 暗色/亮色模式切换
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const icon = document.querySelector('#theme-toggle i');
+            if (icon.classList.contains('fa-moon-o')) {
+                icon.classList.remove('fa-moon-o');
+                icon.classList.add('fa-sun-o');
+                document.body.classList.add('bg-gray-900', 'text-white');
+                document.body.classList.remove('bg-gray-50', 'text-dark');
+                showNotification('已切换到暗色模式', 'info');
+            } else {
+                icon.classList.remove('fa-sun-o');
+                icon.classList.add('fa-moon-o');
+                document.body.classList.remove('bg-gray-900', 'text-white');
+                document.body.classList.add('bg-gray-50', 'text-dark');
+                showNotification('已切换到亮色模式', 'info');
+            }
+        });
+
+        // 初始化
+        sourceText.addEventListener('input', updateCharCount);
+        resultText.addEventListener('input', updateCharCount);
+        updateCharCount();
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+C 复制结果
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && resultText.matches(':focus')) {
+                e.preventDefault();
+                document.getElementById('copy-right').click();
+            }
+
+            // Ctrl+V 粘贴到原文
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v' && sourceText.matches(':focus')) {
+                e.preventDefault();
+                document.getElementById('paste-left').click();
+            }
+        });
     </script>
 <script src="/floating-ball/load-floating-ball.js"></script>
 </body>
-</html>    
+</html>
+

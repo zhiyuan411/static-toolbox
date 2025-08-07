@@ -22,6 +22,16 @@
         </div>
     </div>
 
+    <!-- 复制按钮区域 -->
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12" style="margin: 10px 0;">
+            <button id="copy-all-btn" class="btn btn-primary">
+                <span class="glyphicon glyphicon-copy"></span> 复制所有结果
+            </button>
+            <span id="copy-status" style="margin-left: 10px; display: none;"></span>
+        </div>
+    </div>
+
     <!-- 文件上传区域 -->
     <div class="row">
         <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
@@ -82,6 +92,45 @@
 </div>
 
 <script>
+    // 传统复制方法（使用 textarea 和 execCommand）
+    function fallbackCopyText(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showCopyStatus('复制成功！', true);
+            } else {
+                throw new Error('execCommand 复制失败');
+            }
+        } catch (err) {
+            console.error('复制失败:', err);
+            showCopyStatus('复制失败，请手动复制', false);
+        } finally {
+            document.body.removeChild(textArea);
+        }
+    }
+
+    // 显示复制状态提示
+    function showCopyStatus(message, isSuccess) {
+        const statusElement = $('#copy-status');
+        statusElement.text(message);
+        statusElement.css('color', isSuccess ? 'green' : 'red');
+        statusElement.show();
+        
+        // 3秒后隐藏提示
+        setTimeout(() => {
+            statusElement.hide();
+        }, 3000);
+    }
+
     // 页面加载完成后执行
     $(document).ready(function() {
         // 获取DOM元素
@@ -94,12 +143,41 @@
         const sha512Output = $('#sha512-output');
         const crc32Output = $('#crc32-output');
         const crc16Output = $('#crc16-output');
+        const copyAllBtn = $('#copy-all-btn');
 
         // 当前处理的数据源（text或file）
         let currentSource = 'text';
 
         // 初始化显示
         updateHashDisplay('(无输入)');
+
+        // 复制所有结果按钮点击事件
+        copyAllBtn.click(function() {
+            // 收集所有哈希值结果
+            const results = [
+                `MD5: ${md5Output.text().trim()}`,
+                `SHA-1: ${sha1Output.text().trim()}`,
+                `SHA-256: ${sha256Output.text().trim()}`,
+                `SHA-512: ${sha512Output.text().trim()}`,
+                `CRC-32: ${crc32Output.text().trim()}`,
+                `CRC-16: ${crc16Output.text().trim()}`
+            ].join('\n');
+
+            // 尝试使用现代API复制
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(results)
+                    .then(() => {
+                        showCopyStatus('复制成功！', true);
+                    })
+                    .catch(err => {
+                        console.error('现代API复制失败，使用fallback方法:', err);
+                        fallbackCopyText(results);
+                    });
+            } else {
+                // 不支持现代API，直接使用fallback方法
+                fallbackCopyText(results);
+            }
+        });
 
         // 监听文本输入变化
         textInput.on('input', function() {
@@ -137,7 +215,6 @@
             const sha256Hash = CryptoJS.SHA256(inputText).toString();
             const sha512Hash = CryptoJS.SHA512(inputText).toString();
             const crc32Hash = crc32(inputText);
-            // console.log(crc32(inputText));
             const crc16Hash = crc16(inputText);
 
             // 更新显示
@@ -163,13 +240,13 @@
                     const sha1Hash = CryptoJS.SHA1(wordArray).toString();
                     const sha256Hash = CryptoJS.SHA256(wordArray).toString();
                     const sha512Hash = CryptoJS.SHA512(wordArray).toString();
-                    
+
                     // 创建Uint8Array视图
                     const uint8Array = new Uint8Array(fileData);
-                    
+
                     // 计算CRC-32
                     const crc32Hash = crc32(uint8Array);
-                    
+
                     // 计算CRC-16
                     const crc16Hash = crc16(uint8Array);
 
@@ -214,3 +291,4 @@
 <script src="/floating-ball/load-floating-ball.js"></script>
 </body>
 </html>
+

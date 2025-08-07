@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
   <!-- 引入JSZip (用于ZIP压缩) -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  
+
   <!-- 配置Tailwind自定义主题 -->
   <script>
     tailwind.config = {
@@ -34,7 +34,7 @@
       }
     }
   </script>
-  
+
   <style type="text/tailwindcss">
     @layer utilities {
       .content-auto {
@@ -68,7 +68,7 @@
         <i class="fa fa-compress text-primary text-2xl mr-3"></i>
         <h1 class="text-xl md:text-2xl font-bold text-dark">压缩编码工具</h1>
       </div>
-      
+
       <!-- 功能按钮组 -->
       <div class="flex flex-wrap gap-2 w-full md:w-auto justify-center md:justify-end">
         <button id="swapBtn" class="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-md transition-all flex items-center">
@@ -164,11 +164,44 @@
 
 
   <script>
+    // 传统复制方法（使用 textarea 和 execCommand）
+    function fallbackCopyText(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                showNotification('文本复制成功！');
+                return true;
+            } else {
+                throw new Error('execCommand 复制失败');
+            }
+        } catch (err) {
+            console.error('复制失败:', err);
+            showNotification('复制失败，请手动复制', false);
+            return false;
+        } finally {
+            document.body.removeChild(textArea);
+        }
+    }
+
+    // 显示通知
+    function showNotification(message, isSuccess = true) {
+      updateStatus(message, isSuccess ? 'success' : 'error');
+    }
+
     // DOM元素引用
     const inputTextarea = document.getElementById('inputTextarea');
     const outputTextarea = document.getElementById('outputTextarea');
     const statusElement = document.getElementById('status');
-    
+
     // 按钮引用
     const swapBtn = document.getElementById('swapBtn');
     const autoDecodeBtn = document.getElementById('autoDecodeBtn');
@@ -178,7 +211,7 @@
     const deflateDecodeBtn = document.getElementById('deflateDecodeBtn');
     const gzipEncodeBtn = document.getElementById('gzipEncodeBtn');
     const gzipDecodeBtn = document.getElementById('gzipDecodeBtn');
-    
+
     // 输入输出辅助按钮
     const clearInputBtn = document.getElementById('clearInputBtn');
     const copyInputBtn = document.getElementById('copyInputBtn');
@@ -186,7 +219,7 @@
     const clearOutputBtn = document.getElementById('clearOutputBtn');
     const copyOutputBtn = document.getElementById('copyOutputBtn');
     const pasteOutputBtn = document.getElementById('pasteOutputBtn');
-    
+
     // 更新状态消息
     function updateStatus(message, type = 'info') {
       const iconClass = {
@@ -195,12 +228,12 @@
         error: 'fa-exclamation-circle text-danger',
         warning: 'fa-exclamation-triangle text-warning'
       };
-      
+
       statusElement.innerHTML = `
         <i class="fa ${iconClass[type]} mr-2"></i>
         <span>${message}</span>
       `;
-      
+
       // 10秒后恢复默认状态
       if (type !== 'info') {
         setTimeout(() => {
@@ -208,7 +241,7 @@
         }, 10000);
       }
     }
-    
+
     // 交换输入输出
     swapBtn.addEventListener('click', () => {
       const temp = inputTextarea.value;
@@ -216,25 +249,28 @@
       outputTextarea.value = temp;
       updateStatus('已交换输入输出', 'success');
     });
-    
+
     // 清空输入
     clearInputBtn.addEventListener('click', () => {
       inputTextarea.value = '';
       updateStatus('已清空输入', 'info');
     });
-    
+
     // 复制输入
     copyInputBtn.addEventListener('click', async () => {
       if (inputTextarea.value) {
         try {
+          // 尝试使用现代API
           await navigator.clipboard.writeText(inputTextarea.value);
           updateStatus('已复制输入', 'success');
         } catch (err) {
-          updateStatus('复制失败', 'error');
+          console.log('现代API复制失败，尝试fallback方法:', err);
+          // 现代API失败，使用fallback方法
+          fallbackCopyText(inputTextarea.value);
         }
       }
     });
-    
+
     // 粘贴到输入
     pasteInputBtn.addEventListener('click', async () => {
       try {
@@ -245,25 +281,28 @@
         updateStatus('粘贴失败', 'error');
       }
     });
-    
+
     // 清空输出
     clearOutputBtn.addEventListener('click', () => {
       outputTextarea.value = '';
       updateStatus('已清空输出', 'info');
     });
-    
+
     // 复制输出
     copyOutputBtn.addEventListener('click', async () => {
       if (outputTextarea.value) {
         try {
+          // 尝试使用现代API
           await navigator.clipboard.writeText(outputTextarea.value);
           updateStatus('已复制输出', 'success');
         } catch (err) {
-          updateStatus('复制失败', 'error');
+          console.log('现代API复制失败，尝试fallback方法:', err);
+          // 现代API失败，使用fallback方法
+          fallbackCopyText(outputTextarea.value);
         }
       }
     });
-    
+
     // 粘贴到输出
     pasteOutputBtn.addEventListener('click', async () => {
       try {
@@ -274,13 +313,13 @@
         updateStatus('粘贴失败', 'error');
       }
     });
-    
+
     // 显示加载状态
     function showLoading() {
       outputTextarea.value = '处理中...';
       updateStatus('处理中...', 'info');
     }
-    
+
     // 基于Zip+Base64加密
     zipEncodeBtn.addEventListener('click', async () => {
       const input = inputTextarea.value;
@@ -288,9 +327,9 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       try {
         // 创建一个新的JSZip实例
         const zip = new JSZip();
@@ -298,7 +337,7 @@
         zip.file("content.txt", input);
         // 生成压缩后的内容 (Base64格式)
         const compressed = await zip.generateAsync({ type: "base64" });
-        
+
         outputTextarea.value = compressed;
         updateStatus('Zip+Base64编码完成', 'success');
       } catch (error) {
@@ -307,7 +346,7 @@
         console.error(error);
       }
     });
-    
+
     // 基于Zip+Base64解密
     zipDecodeBtn.addEventListener('click', async () => {
       const input = inputTextarea.value;
@@ -315,9 +354,9 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       try {
         // 从Base64解码
         const zip = await JSZip.loadAsync(input, { base64: true });
@@ -326,7 +365,7 @@
         if (!contentFile) {
           throw new Error("无法找到内容文件");
         }
-        
+
         const decompressed = await contentFile.async("string");
         outputTextarea.value = decompressed;
         updateStatus('Zip+Base64解码完成', 'success');
@@ -336,7 +375,7 @@
         console.error(error);
       }
     });
-    
+
     // 基于deflate+Base64加密
     deflateEncodeBtn.addEventListener('click', () => {
       const input = inputTextarea.value;
@@ -344,9 +383,9 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       try {
         // 将字符串转换为Uint8Array
         const uint8Array = new TextEncoder().encode(input);
@@ -354,7 +393,7 @@
         const compressed = pako.deflate(uint8Array);
         // 将压缩后的Uint8Array转换为Base64
         const base64 = btoa(String.fromCharCode.apply(null, compressed));
-        
+
         outputTextarea.value = base64;
         updateStatus('Deflate+Base64编码完成', 'success');
       } catch (error) {
@@ -363,7 +402,7 @@
         console.error(error);
       }
     });
-    
+
     // 基于deflate+Base64解密
     deflateDecodeBtn.addEventListener('click', () => {
       const input = inputTextarea.value;
@@ -371,9 +410,9 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       try {
         // 将Base64转换为Uint8Array
         const binaryString = atob(input);
@@ -381,12 +420,12 @@
         for (let i = 0; i < binaryString.length; i++) {
           uint8Array[i] = binaryString.charCodeAt(i);
         }
-        
+
         // 使用pako进行deflate解压缩
         const decompressed = pako.inflate(uint8Array);
         // 将解压缩后的Uint8Array转换为字符串
         const result = new TextDecoder().decode(decompressed);
-        
+
         outputTextarea.value = result;
         updateStatus('Deflate+Base64解码完成', 'success');
       } catch (error) {
@@ -395,7 +434,7 @@
         console.error(error);
       }
     });
-    
+
     // 基于gzip+Base64加密
     gzipEncodeBtn.addEventListener('click', () => {
       const input = inputTextarea.value;
@@ -403,9 +442,9 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       try {
         // 将字符串转换为Uint8Array
         const uint8Array = new TextEncoder().encode(input);
@@ -413,7 +452,7 @@
         const compressed = pako.gzip(uint8Array);
         // 将压缩后的Uint8Array转换为Base64
         const base64 = btoa(String.fromCharCode.apply(null, compressed));
-        
+
         outputTextarea.value = base64;
         updateStatus('GZip+Base64编码完成', 'success');
       } catch (error) {
@@ -422,7 +461,7 @@
         console.error(error);
       }
     });
-    
+
     // 基于gzip+Base64解密
     gzipDecodeBtn.addEventListener('click', () => {
       const input = inputTextarea.value;
@@ -430,9 +469,9 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       try {
         // 将Base64转换为Uint8Array
         const binaryString = atob(input);
@@ -440,12 +479,12 @@
         for (let i = 0; i < binaryString.length; i++) {
           uint8Array[i] = binaryString.charCodeAt(i);
         }
-        
+
         // 使用pako进行gzip解压缩
         const decompressed = pako.ungzip(uint8Array);
         // 将解压缩后的Uint8Array转换为字符串
         const result = new TextDecoder().decode(decompressed);
-        
+
         outputTextarea.value = result;
         updateStatus('GZip+Base64解码完成', 'success');
       } catch (error) {
@@ -454,7 +493,7 @@
         console.error(error);
       }
     });
-    
+
     // 自动解密
     autoDecodeBtn.addEventListener('click', async () => {
       const input = inputTextarea.value;
@@ -462,28 +501,28 @@
         updateStatus('请输入需要处理的文本', 'warning');
         return;
       }
-      
+
       showLoading();
-      
+
       // 记录尝试过程
       let attemptLog = "尝试自动解密...\n";
-      
+
       try {
         // 第一步：检查是否为有效的Base64
         const base64Regex = /^[A-Za-z0-9+/=]+$/;
         if (!base64Regex.test(input)) {
           throw new Error("输入不是有效的Base64格式");
         }
-        
+
         attemptLog += "✓ 输入是有效的Base64格式\n";
-        
+
         // 将Base64转换为Uint8Array用于后续处理
         const binaryString = atob(input);
         const uint8Array = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           uint8Array[i] = binaryString.charCodeAt(i);
         }
-        
+
         // 第二步：尝试Zip解密
         attemptLog += "尝试Zip+Base64解密...";
         try {
@@ -499,13 +538,13 @@
         } catch (zipError) {
           attemptLog += `失败 (${zipError.message})\n`;
         }
-        
+
         // 第三步：尝试Deflate解密
         attemptLog += "尝试Deflate+Base64解密...";
         try {
           const decompressed = pako.inflate(uint8Array);
           const result = new TextDecoder().decode(decompressed);
-          
+
           // 简单验证结果是否为有效文本
           if (isValidText(result)) {
             outputTextarea.value = result;
@@ -516,13 +555,13 @@
         } catch (deflateError) {
           attemptLog += `失败 (${deflateError.message})\n`;
         }
-        
+
         // 第四步：尝试GZip解密
         attemptLog += "尝试GZip+Base64解密...";
         try {
           const decompressed = pako.ungzip(uint8Array);
           const result = new TextDecoder().decode(decompressed);
-          
+
           // 简单验证结果是否为有效文本
           if (isValidText(result)) {
             outputTextarea.value = result;
@@ -533,10 +572,10 @@
         } catch (gzipError) {
           attemptLog += `失败 (${gzipError.message})\n`;
         }
-        
+
         // 第五步：如果所有解密方法都失败，显示原始Base64解码后的Hex
         attemptLog += "所有解密方法失败，显示原始Base64解码后的Hex...\n";
-        
+
         // 转换为Hex表示
         let hex = '';
         for (let i = 0; i < uint8Array.length; i++) {
@@ -549,27 +588,27 @@
             hex += ' ';
           }
         }
-        
+
         outputTextarea.value = hex;
         updateStatus('自动解密失败，显示原始数据的Hex编码', 'warning');
-        
+
       } catch (error) {
         outputTextarea.value = '自动解密失败';
         updateStatus(`自动解密失败: ${error.message}`, 'error');
         console.error(error);
       }
     });
-    
+
     // 辅助函数：简单验证是否为有效文本
     function isValidText(text) {
       // 计算文本中可打印字符的比例
       const printableChars = text.match(/[\x20-\x7E]/g) || [];
       const printableRatio = printableChars.length / text.length;
-      
+
       // 如果可打印字符比例超过70%，认为是有效文本
       return printableRatio > 0.7;
     }
-    
+
     // 添加输入文本变化时的状态提示
     inputTextarea.addEventListener('input', () => {
       updateStatus(`已输入 ${inputTextarea.value.length} 个字符`, 'info');
@@ -578,4 +617,4 @@
 <script src="/floating-ball/load-floating-ball.js" ></script>
 </body>
 </html>
-    
+

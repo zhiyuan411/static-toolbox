@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en">
+<html lang="ch-ZH">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, minimum-scale=1.0, user-scalable=no">
@@ -77,7 +77,7 @@
 
             -webkit-flex: 0 0 auto;
             flex: 0 0 auto;
-            
+
             /* 新增：使type区域成为flex容器 */
             display: flex;
             justify-content: space-between;
@@ -248,7 +248,7 @@
         .customSelect#focused {
             border-bottom: 1px solid rgba(0,0,0,0.87);
         }
-        
+
         /* 新增：按钮样式 */
         .btn-group {
             display: flex;
@@ -269,6 +269,29 @@
         }
         .action-btn:active {
             background-color: #d0d0d0;
+        }
+
+        /* 通知样式 */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        .notification.success {
+            background-color: #4caf50;
+        }
+        .notification.error {
+            background-color: #f44336;
+        }
+        .notification.show {
+            opacity: 1;
         }
     </style>
 </head>
@@ -335,9 +358,48 @@
             </div>
         </div>
     </div>
+    <!-- 通知元素 -->
+    <div id="notification" class="notification"></div>
 <script src="https://cdn.jsdelivr.net/npm/hi-base32@0.5.1/build/base32.min.js"></script>
 <script>
 'use strict';
+
+// 传统复制方法（使用 textarea 和 execCommand）
+function fallbackCopyText(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification('文本复制成功！', true);
+        } else {
+            throw new Error('execCommand 复制失败');
+        }
+    } catch (err) {
+        console.error('复制失败:', err);
+        showNotification('复制失败，请手动复制', false);
+    } finally {
+        document.body.removeChild(textArea);
+    }
+}
+
+// 显示通知
+function showNotification(message, isSuccess) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = 'notification ' + (isSuccess ? 'success' : 'error');
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 2000);
+}
 
 var LeftConversionTypes, RightConversionTypes;
 var leftConversionType, rightConversionType;
@@ -431,39 +493,83 @@ window.addEventListener('DOMContentLoaded', function() {
     var rightConversionTypeFromDOM = RightConversionTypes[rightTypeSelect.value];
     if (rightConversionTypeFromDOM !== rightConversionType)
         onRightTypeChanged();
-        
+
     // 新增：按钮事件监听
     document.getElementById('leftClearBtn').addEventListener('click', function() {
         leftTextarea.value = '';
         updateConversion();
     });
-    
+
+    // 修改左侧复制按钮事件，添加失败处理
     document.getElementById('leftCopyBtn').addEventListener('click', function() {
-        leftTextarea.select();
-        document.execCommand('copy');
+        const textToCopy = leftTextarea.value;
+        if (!textToCopy) {
+            showNotification('没有内容可复制', false);
+            return;
+        }
+        
+        // 尝试使用现代 Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => {
+                    showNotification('文本复制成功！', true);
+                })
+                .catch(err => {
+                    console.error('Clipboard API 复制失败，使用 fallback 方法:', err);
+                    fallbackCopyText(textToCopy);
+                });
+        } else {
+            // 不支持 Clipboard API，直接使用 fallback 方法
+            fallbackCopyText(textToCopy);
+        }
     });
-    
+
     document.getElementById('leftPasteBtn').addEventListener('click', function() {
         navigator.clipboard.readText().then(function(text) {
             leftTextarea.value = text;
             updateConversion();
+        }).catch(err => {
+            console.error('粘贴失败:', err);
+            showNotification('粘贴失败，请手动粘贴', false);
         });
     });
-    
+
     document.getElementById('rightClearBtn').addEventListener('click', function() {
         rightTextarea.value = '';
         updateConversion();
     });
-    
+
+    // 修改右侧复制按钮事件，添加失败处理
     document.getElementById('rightCopyBtn').addEventListener('click', function() {
-        rightTextarea.select();
-        document.execCommand('copy');
+        const textToCopy = rightTextarea.value;
+        if (!textToCopy) {
+            showNotification('没有内容可复制', false);
+            return;
+        }
+        
+        // 尝试使用现代 Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => {
+                    showNotification('文本复制成功！', true);
+                })
+                .catch(err => {
+                    console.error('Clipboard API 复制失败，使用 fallback 方法:', err);
+                    fallbackCopyText(textToCopy);
+                });
+        } else {
+            // 不支持 Clipboard API，直接使用 fallback 方法
+            fallbackCopyText(textToCopy);
+        }
     });
-    
+
     document.getElementById('rightPasteBtn').addEventListener('click', function() {
         navigator.clipboard.readText().then(function(text) {
             rightTextarea.value = text;
             updateConversion();
+        }).catch(err => {
+            console.error('粘贴失败:', err);
+            showNotification('粘贴失败，请手动粘贴', false);
         });
     });
 });
@@ -663,8 +769,6 @@ function asyncToBase64(value, encoding, onSuccess, onError) {
                 onSuccess(base64urlResult);
                 break;
             case 'base32utf8':
-                // value = Base64Utils.encodeToUtf8Array(value);
-                // console.log(value);
                 // 使用 hi-base32 库进行编码
                 var base32Result = base32.encode(value);
                 onSuccess(base32Result);
@@ -707,7 +811,6 @@ function asyncFromBase64(value, encoding, onSuccess, onError) {
             case 'base32utf8':
                 // 使用 js-base32 库进行解码
                 var result = base32.decode(value);
-                // var result = Base64Utils.decodeFromUtf8Array(byteArray);
                 onSuccess(result);
                 break;
             default:
@@ -975,4 +1078,4 @@ Base64Utils.decodeFromUtf8Array = function(bytes) {
 <script src="/floating-ball/load-floating-ball.js"></script>
 </body>
 </html>
-    
+
