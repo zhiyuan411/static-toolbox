@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本差异对比工具</title>
+    <!-- 引入外部资源 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css" />
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/diff/dist/diff.min.js"></script>
+    <!-- 引入js-beautify库用于代码格式化 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-css.min.js"></script>
+
+    <!-- 配置Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        danger: '#EF4444',
+                        warning: '#F59E0B',
+                        dark: '#1E293B',
+                        light: '#F8FAFC',
+                        jsonAdded: '#ccffd8',
+                        jsonAddedDark: '#22c55e',
+                        jsonRemoved: '#ffdce0',
+                        jsonRemovedDark: '#ef4444',
+                        jsonGrayed: '#f3f4f6'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Consolas', 'Monaco', 'monospace']
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        /* 平滑滚动 */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* 动画效果 */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* 加载提示 */
+        .loading-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 确保diff内容自适应容器 */
+        .d2h-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: auto !important;
+        }
+
+        .d2h-file-wrapper {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .d2h-diff-table {
+            width: 100% !important;
+            min-width: 600px !important;
+        }
+
+        /* JSON对比样式 */
+        .json-diff-container {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .json-side-by-side {
+            display: flex;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .json-side {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .json-content-wrapper {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        .json-line {
+            padding: 0 4px;
+            white-space: pre;
+            display: flex;
+            align-items: center;
+            line-height: 1.4;
+            min-width: 100%; /* 确保行宽至少为容器宽度 */
+            box-sizing: border-box; /* 确保padding不影响宽度计算 */
+        }
+
+        .json-line-number {
+            display: inline-block;
+            width: 30px;
+            color: #999;
+            text-align: right;
+            padding-right: 6px;
+            margin-right: 4px;
+            user-select: none;
+            border-right: 1px solid #eee;
+            flex-shrink: 0;
+        }
+
+        .json-line-content {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        /* 确保背景色覆盖整行 */
+        .json-added, .json-removed, .json-grayed, .json-unchanged {
+            width: 100%;
+        }
+
+        .json-added {
+            background-color: rgba(34, 197, 94, 0.1);
+        }
+
+        .json-added .json-diff {
+            background-color: rgba(34, 197, 94, 0.3);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .json-removed {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .json-removed .json-diff {
+            background-color: rgba(239, 68, 68, 0.3);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        .json-unchanged {
+            background-color: transparent;
+        }
+
+        .json-grayed {
+            background-color: #f3f4f6;
+            color: #9ca3af;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            #diffDisplayMode option[value="side-by-side"] {
+                display: none;
+            }
+
+            .json-side-by-side {
+                flex-direction: column;
+            }
+
+            .json-side {
+                width: 100% !important;
+                border-right: none !important;
+                border-bottom: 1px solid #eee;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md z-10">
+        <div class="container mx-auto px-4 py-3 flex flex-wrap items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-code-fork text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-dark">文本差异对比工具</h1>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+
+                <!-- 格式处理下拉框 -->
+                <div class="relative">
+                    <select id="formatOption" class="bg-gray-100 border border-gray-300 text-gray-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer text-sm">
+                        <option value="original" selected>原始内容</option>
+                        <option value="remove-indent">去除统一缩进</option>
+                        <option value="format-code">代码格式化</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <i class="fa fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+
+                <!-- 对比类型选择 -->
+                <div class="relative">
+                    <select id="diffType" class="bg-gray-100 border border-gray-300 text-gray-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer text-sm">
+                        <option value="text" selected>文本对比</option>
+                        <option value="json">JSON对比</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <i class="fa fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+
+                <!-- 参数设置 -->
+                <div class="relative" id="paramContainer">
+                    <button id="paramButton" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 py-2 px-3 rounded-lg transition-all duration-200 flex items-center gap-1 text-sm">
+                        <i class="fa fa-sliders"></i>
+                        <span>参数</span>
+                    </button>
+                    <!-- 参数下拉菜单 -->
+                    <div id="paramDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 hidden">
+                        <div class="px-3 py-2">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="ignoreWhitespace" class="form-checkbox text-primary rounded">
+                                <span>忽略首尾空白</span>
+                            </label>
+                        </div>
+                        <div class="px-3 py-2 border-t border-gray-100">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="stripTrailingCr" class="form-checkbox text-primary rounded">
+                                <span>忽略换行符</span>
+                            </label>
+                        </div>
+                        <div class="px-3 py-2 border-t border-gray-100">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="showCharDiff" class="form-checkbox text-primary rounded">
+                                <span>显示字符差异</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 显示模式 -->
+                <div class="relative">
+                    <select id="diffDisplayMode" class="bg-gray-100 border border-gray-300 text-gray-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer text-sm">
+                        <option value="side-by-side">并排显示</option>
+                        <option value="line-by-line">合并显示</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <i class="fa fa-chevron-down text-xs"></i>
+                    </div>
+                </div>
+
+                <!-- 交换按钮 -->
+                <button id="swapContent" class="bg-warning hover:bg-warning/90 text-white py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-1 text-sm">
+                    <i class="fa fa-exchange"></i>
+                    <span>交换内容</span>
+                </button>
+
+                <button id="copyResult" class="bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-1 text-sm">
+                    <i class="fa fa-copy"></i>
+                    <span>复制结果</span>
+                </button>
+
+                <button id="clearAll" class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-1 text-sm">
+                    <i class="fa fa-trash"></i>
+                    <span>清空</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区 -->
+    <main class="flex-grow container mx-auto px-4 py-6">
+        <!-- 加载状态提示 -->
+        <div id="loadingIndicator" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-dark/80 text-white px-6 py-4 rounded-lg shadow-xl z-50 hidden">
+            <div class="flex items-center gap-3">
+                <div class="loading-indicator"></div>
+                <span>正在生成差异对比，请稍候...</span>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- 原始文本输入 -->
+            <div class="flex flex-col h-full bg-white rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+                <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i class="fa fa-file-text-o text-danger"></i>
+                        <h2 class="font-semibold">原始内容</h2>
+                    </div>
+                    <button id="clearOriginal" class="text-gray-500 hover:text-gray-700 transition-colors p-1">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+                <textarea
+                    id="originalText"
+                    class="flex-grow w-full p-4 focus:outline-none resize-none font-mono text-sm"
+                    placeholder="请输入原始内容..."
+                    rows="10"
+                ></textarea>
+                <div class="bg-gray-50 px-4 py-2 border-t border-gray-200 text-xs text-gray-500">
+                    <span id="originalCount">0行，0字符</span>
+                </div>
+            </div>
+
+            <!-- 修改后文本输入 -->
+            <div class="flex flex-col h-full bg-white rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+                <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i class="fa fa-file-text-o text-secondary"></i>
+                        <h2 class="font-semibold">修改后内容</h2>
+                    </div>
+                    <button id="clearModified" class="text-gray-500 hover:text-gray-700 transition-colors p-1">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+                <textarea
+                    id="modifiedText"
+                    class="flex-grow w-full p-4 focus:outline-none resize-none font-mono text-sm"
+                    placeholder="请输入修改后的内容..."
+                    rows="10"
+                ></textarea>
+                <div class="bg-gray-50 px-4 py-2 border-t border-gray-200 text-xs text-gray-500">
+                    <span id="modifiedCount">0行，0字符</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 对比结果区域 -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="bg-gray-100 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa fa-exchange text-primary"></i>
+                    <h2 class="font-semibold">对比结果</h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-1 text-sm">
+                        <span class="inline-block w-3 h-3 bg-secondary/20 border border-secondary rounded-sm"></span>
+                        <span>新增</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-sm">
+                        <span class="inline-block w-3 h-3 bg-danger/20 border border-danger rounded-sm"></span>
+                        <span>删除</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 滚动容器确保在小屏幕上可以横向滚动 -->
+            <div class="overflow-x-auto">
+                <div id="diffResult" class="p-0 w-full"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 通知提示 -->
+    <div id="notification" class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2 z-50"></div>
+
+
+    <script>
+        // 存储最新的差异结果，用于复制功能
+        let latestDiffResult = '';
+        // 存储原始内容备份，用于恢复
+        let originalContentBackup = null;
+        let modifiedContentBackup = null;
+        // 记录上一次的格式选项，用于检测变化
+        let lastFormatOption = 'original';
+
+        // 显示通知函数
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.className = 'fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2 z-50';
+
+            switch(type) {
+                case 'success':
+                    notification.classList.add('bg-secondary', 'text-white');
+                    notification.innerHTML = '<i class="fa fa-check-circle"></i>' + message;
+                    break;
+                case 'error':
+                    notification.classList.add('bg-danger', 'text-white');
+                    notification.innerHTML = '<i class="fa fa-exclamation-circle"></i>' + message;
+                    break;
+                default:
+                    notification.classList.add('bg-primary', 'text-white');
+                    notification.innerHTML = '<i class="fa fa-info-circle"></i>' + message;
+            }
+
+            setTimeout(() => {
+                notification.classList.remove('translate-y-0', 'opacity-100');
+                notification.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // 传统复制方法
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification('文本复制成功！', 'success');
+                    return true;
+                } else {
+                    throw new Error('execCommand 复制失败');
+                }
+            } catch (err) {
+                console.error('复制失败:', err);
+                showNotification('复制失败，请手动复制', 'error');
+                return false;
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // 简化版：使用表格布局渲染JSON差异
+        function renderJsonSideBySide(changes) {
+            const container = document.createElement('div');
+            container.className = 'json-diff-container json-side-by-side';
+
+            // 创建左侧面板（原始JSON）
+            const leftPanel = document.createElement('div');
+            leftPanel.className = 'json-side border-r border-gray-200';
+            leftPanel.innerHTML = '<h3 class="text-sm font-semibold mb-2 px-4 py-2 bg-gray-50">原始JSON</h3>';
+
+            // 创建左侧表格
+            const leftTable = createDiffTable();
+            leftPanel.appendChild(leftTable);
+
+            // 创建右侧面板（修改后JSON）
+            const rightPanel = document.createElement('div');
+            rightPanel.className = 'json-side';
+            rightPanel.innerHTML = '<h3 class="text-sm font-semibold mb-2 px-4 py-2 bg-gray-50">修改后JSON</h3>';
+
+            // 创建右侧表格
+            const rightTable = createDiffTable();
+            rightPanel.appendChild(rightTable);
+
+            // 行号跟踪
+            let leftLineNumber = 1;
+            let rightLineNumber = 1;
+
+            // 处理变更并填充表格
+            changes.forEach(change => {
+                const lines = change.value.split('\n')
+                    .map(line => line.replace(/\r/g, ''))
+                    .filter(line => line.trim() !== '');
+
+                if (change.removed) {
+                    // 处理删除的内容（左侧显示删除行，右侧显示空行）
+                    lines.forEach(line => {
+                        addTableRow(leftTable, leftLineNumber++, 'json-removed', line);
+                        addTableRow(rightTable, rightLineNumber++, 'json-grayed', '');
+                    });
+                } else if (change.added) {
+                    // 处理新增的内容（左侧显示空行，右侧显示新增行）
+                    lines.forEach(line => {
+                        addTableRow(leftTable, leftLineNumber++, 'json-grayed', '');
+                        addTableRow(rightTable, rightLineNumber++, 'json-added', line);
+                    });
+                } else {
+                    // 处理无变动的内容（两侧显示相同内容）
+                    lines.forEach(line => {
+                        addTableRow(leftTable, leftLineNumber++, 'json-unchanged', line);
+                        addTableRow(rightTable, rightLineNumber++, 'json-unchanged', line);
+                    });
+                }
+            });
+
+            // 同步滚动
+            setupSyncScroll(leftPanel, rightPanel);
+
+            container.appendChild(leftPanel);
+            container.appendChild(rightPanel);
+            return container;
+        }
+
+        // 创建差异表格
+        function createDiffTable() {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'json-content-wrapper overflow-x-auto';
+
+            const table = document.createElement('table');
+            table.className = 'json-diff-table w-full border-collapse';
+
+            const tbody = document.createElement('tbody');
+            table.appendChild(tbody);
+            wrapper.appendChild(table);
+
+            return wrapper;
+        }
+
+        // 向表格添加行
+        function addTableRow(table, lineNumber, type, content) {
+            const tbody = table.querySelector('tbody');
+            const row = document.createElement('tr');
+            row.className = `json-line ${type}`;
+
+            // 行号单元格
+            const lineNumCell = document.createElement('td');
+            lineNumCell.className = 'json-line-number px-3 py-1 text-right text-gray-500 border-r border-gray-200 w-12';
+            lineNumCell.textContent = lineNumber;
+
+            // 内容单元格
+            const contentCell = document.createElement('td');
+            contentCell.className = 'json-line-content px-3 py-1 font-mono text-sm';
+
+            if (content) {
+                // 对有变更的内容添加特殊标记
+                if (type === 'json-added' || type === 'json-removed') {
+                    contentCell.innerHTML = `<span class="json-diff">${escapeHtml(content)}</span>`;
+                } else {
+                    contentCell.textContent = content;
+                }
+            }
+
+            row.appendChild(lineNumCell);
+            row.appendChild(contentCell);
+            tbody.appendChild(row);
+        }
+
+        // 设置同步滚动
+        function setupSyncScroll(leftPanel, rightPanel) {
+            const leftWrapper = leftPanel.querySelector('.json-content-wrapper');
+            const rightWrapper = rightPanel.querySelector('.json-content-wrapper');
+            let isSyncing = false;
+
+            // 左侧滚动同步到右侧
+            leftWrapper.addEventListener('scroll', () => {
+                if (!isSyncing) {
+                    isSyncing = true;
+                    rightWrapper.scrollLeft = leftWrapper.scrollLeft;
+                    setTimeout(() => isSyncing = false, 10);
+                }
+            });
+
+            // 右侧滚动同步到左侧
+            rightWrapper.addEventListener('scroll', () => {
+                if (!isSyncing) {
+                    isSyncing = true;
+                    leftWrapper.scrollLeft = rightWrapper.scrollLeft;
+                    setTimeout(() => isSyncing = false, 10);
+                }
+            });
+        }
+
+
+        // 渲染JSON差异 - 合并显示
+        function renderJsonLineByLine(changes) {
+            // 创建容器和滚动包装器
+            const container = document.createElement('div');
+            container.className = 'json-diff-container';
+
+            const scrollWrapper = document.createElement('div');
+            scrollWrapper.className = 'json-content-wrapper overflow-x-auto';
+            container.appendChild(scrollWrapper);
+
+            // 创建表格结构
+            const table = document.createElement('table');
+            table.className = 'json-diff-table w-full border-collapse';
+
+            const tbody = document.createElement('tbody');
+            table.appendChild(tbody);
+            scrollWrapper.appendChild(table);
+
+            // 处理所有变更
+            changes.forEach(change => {
+                const lines = change.value.split('\n')
+                    .map(line => line.replace(/\r/g, ''))
+                    .filter(line => line.trim() !== '');
+
+                if (change.removed) {
+                    // 处理删除的内容
+                    lines.forEach(line => {
+                        const row = document.createElement('tr');
+                        row.className = 'json-line json-removed';
+
+                        // 行号/类型单元格
+                        const typeCell = document.createElement('td');
+                        typeCell.className = 'json-line-number px-3 py-1 text-right text-gray-500 border-r border-gray-200 w-12';
+                        typeCell.textContent = '-';
+
+                        // 内容单元格
+                        const contentCell = document.createElement('td');
+                        contentCell.className = 'json-line-content px-3 py-1 font-mono text-sm';
+                        contentCell.innerHTML = `<span class="json-diff">${escapeHtml(line)}</span>`;
+
+                        row.appendChild(typeCell);
+                        row.appendChild(contentCell);
+                        tbody.appendChild(row);
+                    });
+                }
+
+                if (change.added) {
+                    // 处理新增的内容
+                    lines.forEach(line => {
+                        const row = document.createElement('tr');
+                        row.className = 'json-line json-added';
+
+                        // 行号/类型单元格
+                        const typeCell = document.createElement('td');
+                        typeCell.className = 'json-line-number px-3 py-1 text-right text-gray-500 border-r border-gray-200 w-12';
+                        typeCell.textContent = '+';
+
+                        // 内容单元格
+                        const contentCell = document.createElement('td');
+                        contentCell.className = 'json-line-content px-3 py-1 font-mono text-sm';
+                        contentCell.innerHTML = `<span class="json-diff">${escapeHtml(line)}</span>`;
+
+                        row.appendChild(typeCell);
+                        row.appendChild(contentCell);
+                        tbody.appendChild(row);
+                    });
+                }
+
+                if (!change.added && !change.removed) {
+                    // 处理无变动的内容
+                    lines.forEach(line => {
+                        const row = document.createElement('tr');
+                        row.className = 'json-line json-unchanged';
+
+                        // 行号/类型单元格
+                        const typeCell = document.createElement('td');
+                        typeCell.className = 'json-line-number px-3 py-1 text-right text-gray-500 border-r border-gray-200 w-12';
+                        typeCell.textContent = ' ';
+
+                        // 内容单元格
+                        const contentCell = document.createElement('td');
+                        contentCell.className = 'json-line-content px-3 py-1 font-mono text-sm';
+                        contentCell.textContent = escapeHtml(line);
+
+                        row.appendChild(typeCell);
+                        row.appendChild(contentCell);
+                        tbody.appendChild(row);
+                    });
+                }
+            });
+
+            return container;
+        }
+
+
+        // 格式化JSON差异为文本格式
+        function formatJsonDiffForCopy(changes) {
+            let result = '';
+
+            changes.forEach(change => {
+                if (change.removed) {
+                    const lines = change.value.split('\n');
+                    lines.forEach(line => {
+                        if (line.trim() !== '') {
+                            result += `- ${line}\n`;
+                        }
+                    });
+                }
+
+                if (change.added) {
+                    const lines = change.value.split('\n');
+                    lines.forEach(line => {
+                        if (line.trim() !== '') {
+                            result += `+ ${line}\n`;
+                        }
+                    });
+                }
+
+                if (!change.added && !change.removed) {
+                    const lines = change.value.split('\n');
+                    lines.forEach(line => {
+                        if (line.trim() !== '') {
+                            result += `  ${line}\n`;
+                        }
+                    });
+                }
+            });
+
+            return result;
+        }
+
+        // HTML转义函数
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // 计算文本的行数和字符数
+        function countLinesAndChars(text) {
+            const lines = text === '' ? 0 : text.split('\n').length;
+            const chars = text.length;
+            return { lines, chars };
+        }
+
+        // 更新行数和字符计数
+        function updateCharacterCount() {
+            const originalText = document.getElementById('originalText').value;
+            const modifiedText = document.getElementById('modifiedText').value;
+
+            const originalStats = countLinesAndChars(originalText);
+            const modifiedStats = countLinesAndChars(modifiedText);
+
+            document.getElementById('originalCount').textContent =
+                `${originalStats.lines}行，${originalStats.chars}字符`;
+            document.getElementById('modifiedCount').textContent =
+                `${modifiedStats.lines}行，${modifiedStats.chars}字符`;
+        }
+
+        // 计算最小缩进量（空格或制表符）
+        function getMinIndentation(lines) {
+            let minIndent = Infinity;
+
+            lines.forEach(line => {
+                if (line.trim() === '') return; // 跳过空行
+
+                let indentCount = 0;
+                let i = 0;
+
+                // 计算缩进字符数（空格或制表符）
+                while (i < line.length) {
+                    if (line[i] === ' ' || line[i] === '\t') {
+                        indentCount++;
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (indentCount < minIndent) {
+                    minIndent = indentCount;
+                }
+            });
+
+            return minIndent === Infinity ? 0 : minIndent;
+        }
+
+        // 去除统一缩进
+        function removeUniformIndentation(text) {
+            if (!text) return text;
+
+            const lines = text.split('\n');
+            const minIndent = getMinIndentation(lines);
+
+            if (minIndent === 0) return text;
+
+            // 对每一行去除相同数量的缩进
+            const processedLines = lines.map(line => {
+                if (line.trim() === '') return line;
+
+                let removed = 0;
+                let i = 0;
+
+                // 去除缩进字符
+                while (i < line.length && removed < minIndent) {
+                    if (line[i] === ' ' || line[i] === '\t') {
+                        removed++;
+                        i++;
+                    } else {
+                        break;
+                    }
+                }
+
+                return line.substring(i);
+            });
+
+            return processedLines.join('\n');
+        }
+
+        // 代码格式化函数：先尝试JSON格式化，失败则使用js_beautify
+        function formatCode(text) {
+            if (!text) return text;
+
+            // 尝试JSON格式化
+            try {
+                const parsed = JSON.parse(text);
+                return JSON.stringify(parsed, null, 2);
+            } catch (jsonError) {
+                // JSON格式化失败，尝试使用js_beautify
+                try {
+                    // 尝试检测内容类型
+                    const trimmedText = text.trim();
+
+                    // HTML格式化
+                    if ((trimmedText.startsWith('<') && trimmedText.endsWith('>')) ||
+                        trimmedText.includes('<html') || trimmedText.includes('<body')) {
+                        return html_beautify(text, {
+                            indent_size: 2,
+                            wrap_line_length: 80,
+                            preserve_newlines: true
+                        });
+                    }
+                    // CSS格式化
+                    else if (/(\.[\w-]+|#[\w-]+|@media|@keyframes)\s*\{[^}]*\}/.test(trimmedText) &&
+                             !/(=>|\b(?:var|let|const|function)\b)/.test(trimmedText)) {
+                        return css_beautify(text, {
+                            indent_size: 2,
+                            wrap_line_length: 80
+                        });
+                    }
+                    // 默认使用JavaScript格式化
+                    else {
+                        return js_beautify(text, {
+                            indent_size: 2,
+                            wrap_line_length: 80,
+                            preserve_newlines: true,
+                            space_in_paren: true
+                        });
+                    }
+                } catch (beautifyError) {
+                    console.error('代码格式化失败:', beautifyError);
+                    // 所有格式化方法都失败，返回原始文本
+                    return text;
+                }
+            }
+        }
+
+
+        // 初始化工具
+        function initTool() {
+            // 检查屏幕宽度，在小屏幕上默认使用上下显示模式
+            if (window.innerWidth < 768) {
+                document.getElementById('diffDisplayMode').value = 'line-by-line';
+            }
+
+            // 获取DOM元素
+            const originalText = document.getElementById('originalText');
+            const modifiedText = document.getElementById('modifiedText');
+            const diffResult = document.getElementById('diffResult');
+            const diffType = document.getElementById('diffType');
+            const diffDisplayMode = document.getElementById('diffDisplayMode');
+            const ignoreWhitespace = document.getElementById('ignoreWhitespace');
+            const stripTrailingCr = document.getElementById('stripTrailingCr');
+            const showCharDiff = document.getElementById('showCharDiff');
+            const paramButton = document.getElementById('paramButton');
+            const paramDropdown = document.getElementById('paramDropdown');
+            const paramContainer = document.getElementById('paramContainer');
+            const swapContent = document.getElementById('swapContent');
+            const clearAll = document.getElementById('clearAll');
+            const clearOriginal = document.getElementById('clearOriginal');
+            const clearModified = document.getElementById('clearModified');
+            const copyResult = document.getElementById('copyResult');
+            const formatOption = document.getElementById('formatOption');
+
+            // 参数下拉框交互
+            let dropdownTimeout;
+
+            paramButton.addEventListener('mouseenter', () => {
+                clearTimeout(dropdownTimeout);
+                paramDropdown.classList.remove('hidden');
+            });
+
+            paramButton.addEventListener('click', () => {
+                clearTimeout(dropdownTimeout);
+                paramDropdown.classList.toggle('hidden');
+            });
+
+            paramContainer.addEventListener('mouseleave', () => {
+                dropdownTimeout = setTimeout(() => {
+                    paramDropdown.classList.add('hidden');
+                }, 300);
+            });
+
+            paramDropdown.addEventListener('mouseenter', () => {
+                clearTimeout(dropdownTimeout);
+            });
+
+            paramDropdown.addEventListener('mouseleave', () => {
+                dropdownTimeout = setTimeout(() => {
+                    paramDropdown.classList.add('hidden');
+                }, 100);
+            });
+
+            // 交换输入内容
+            function swapTextContents() {
+                const temp = originalText.value;
+                originalText.value = modifiedText.value;
+                modifiedText.value = temp;
+
+                // 同时交换备份内容
+                const tempBackup = originalContentBackup;
+                originalContentBackup = modifiedContentBackup;
+                modifiedContentBackup = tempBackup;
+
+                updateCharacterCount();
+                computeAndShowDiff();
+                showNotification("已交换输入内容", "info");
+            }
+
+            // 处理格式选项变更
+            function handleFormatOptionChange() {
+                const formatOption = document.getElementById('formatOption').value;
+                const originalText = document.getElementById('originalText');
+                const modifiedText = document.getElementById('modifiedText');
+                const formatChanged = formatOption !== lastFormatOption;
+
+                // 只有当选项发生变化时才处理
+                if (formatChanged) {
+                    if (formatOption === 'remove-indent') {
+                        // 备份原始内容（如果尚未备份）
+                        if (originalContentBackup === null) {
+                            originalContentBackup = originalText.value;
+                            modifiedContentBackup = modifiedText.value;
+                        }
+
+                        // 去除统一缩进
+                        const newOriginal = removeUniformIndentation(originalContentBackup);
+                        const newModified = removeUniformIndentation(modifiedContentBackup);
+
+                        originalText.value = newOriginal;
+                        modifiedText.value = newModified;
+                        showNotification('已去除统一缩进', 'info');
+                        updateCharacterCount();
+                        computeAndShowDiff();
+
+                    } else if (formatOption === 'format-code') {
+                        // 备份原始内容（如果尚未备份）
+                        if (originalContentBackup === null) {
+                            originalContentBackup = originalText.value;
+                            modifiedContentBackup = modifiedText.value;
+                        }
+
+                        // 代码格式化
+                        const newOriginal = formatCode(originalContentBackup);
+                        const newModified = formatCode(modifiedContentBackup);
+
+                        originalText.value = newOriginal;
+                        modifiedText.value = newModified;
+                        showNotification('已完成代码格式化', 'info');
+                        updateCharacterCount();
+                        computeAndShowDiff();
+
+                    } else {
+                        // 恢复原始内容
+                        if (originalContentBackup !== null) {
+
+                            originalText.value = originalContentBackup;
+                            modifiedText.value = modifiedContentBackup;
+                            showNotification('已恢复原始内容', 'info');
+                            updateCharacterCount();
+                            computeAndShowDiff();
+
+                            // 清空备份
+                            originalContentBackup = null;
+                            modifiedContentBackup = null;
+                        }
+                    }
+
+                    // 更新上一次的格式选项
+                    lastFormatOption = formatOption;
+                }
+            }
+
+            // 计算并显示差异
+            function computeAndShowDiff() {
+                const original = originalText.value;
+                const modified = modifiedText.value;
+
+                // console.log('触发对比', original, modified);
+
+                // 显示加载状态
+                document.getElementById('loadingIndicator').classList.remove('hidden');
+
+                if (!original && !modified) {
+                    diffResult.innerHTML = `
+                        <div class="p-4 text-center fade-in">
+                            <i class="fa fa-info-circle text-4xl mb-3 text-gray-300"></i>
+                            <p>请在上方输入内容进行对比</p>
+                        </div>
+                    `;
+                    latestDiffResult = '';
+                    document.getElementById('loadingIndicator').classList.add('hidden');
+                    return;
+                }
+
+                if (original === modified) {
+                    diffResult.innerHTML = `
+                        <div class="p-4 text-center fade-in">
+                            <i class="fa fa-check-circle text-4xl mb-3 text-secondary"></i>
+                            <p>两个内容完全相同</p>
+                        </div>
+                    `;
+                    latestDiffResult = '两个内容完全相同';
+                    document.getElementById('loadingIndicator').classList.add('hidden');
+                    return;
+                }
+
+                try {
+                    const type = diffType.value;
+                    const displayMode = window.innerWidth < 768 ? 'line-by-line' : diffDisplayMode.value;
+
+                    if (type === 'text') {
+                        // 文本对比 - 使用diff2html
+                        const options = {
+                            ignoreWhitespace: ignoreWhitespace.checked,
+                            stripTrailingCr: stripTrailingCr.checked,
+                            context: 3
+                        };
+
+                        // 生成差异并保存到变量，用于复制功能
+                        const diffString = Diff.createTwoFilesPatch(
+                            "原始内容",
+                            "修改后内容",
+                            original,
+                            modified,
+                            undefined,
+                            undefined,
+                            options
+                        );
+
+                        // 保存原始差异结果
+                        latestDiffResult = diffString;
+
+                        // 使用diff2html配置
+                        const configuration = {
+                            drawFileList: false,
+                            outputFormat: displayMode,
+                            highlight: true,
+                            diffStyle: showCharDiff.checked ? 'char' : 'word',
+                            colorScheme: 'light',
+                            matching: 'words',
+                            synchronisedScroll: true,
+                            fileContentToggle: false
+                        };
+
+                        // 渲染差异
+                        diffResult.innerHTML = '';
+                        const diff2htmlUi = new Diff2HtmlUI(diffResult, diffString, configuration);
+                        diff2htmlUi.draw();
+                        diff2htmlUi.highlightCode();
+
+                        // 添加动画效果
+                        const diffElements = diffResult.querySelectorAll('.d2h-file-wrapper');
+                        diffElements.forEach(el => {
+                            el.classList.add('fade-in');
+                        });
+                    } else {
+                        // JSON对比 - 使用jsdiff的diffJson函数生成差异
+                        try {
+                            // 解析JSON对象
+                            const oldObj = JSON.parse(original);
+                            const newObj = JSON.parse(modified);
+
+                            // 使用jsdiff的diffJson函数生成差异
+                            const changes = Diff.diffJson(oldObj, newObj);
+
+                            // 格式化JSON差异结果，用于复制
+                            latestDiffResult = formatJsonDiffForCopy(changes);
+
+                            // 使用自定义方式渲染JSON差异
+                            diffResult.innerHTML = '';
+                            let diffElement;
+
+                            if (displayMode === 'side-by-side') {
+                                diffElement = renderJsonSideBySide(changes);
+                            } else {
+                                diffElement = renderJsonLineByLine(changes);
+                            }
+
+                            diffElement.classList.add('fade-in');
+                            diffResult.appendChild(diffElement);
+
+                        } catch (jsonError) {
+                            showNotification('JSON解析错误: ' + jsonError.message, 'error');
+                            diffResult.innerHTML = `
+                                <div class="p-4 text-center fade-in text-danger">
+                                    <i class="fa fa-exclamation-circle text-4xl mb-3"></i>
+                                    <p>JSON解析错误: ${jsonError.message}</p>
+                                </div>
+                            `;
+                            latestDiffResult = `JSON解析错误: ${jsonError.message}`;
+                        }
+                    }
+
+                } catch (error) {
+                    showNotification('生成差异时出错: ' + error.message, 'error');
+                    console.error('差异生成错误:', error);
+                    latestDiffResult = `生成差异时出错: ${error.message}`;
+                } finally {
+                    // 隐藏加载状态
+                    document.getElementById('loadingIndicator').classList.add('hidden');
+                }
+            }
+
+            // 复制结果到剪贴板
+            function copyDiffResult() {
+                if (!latestDiffResult) {
+                    showNotification("没有可复制的差异结果", "info");
+                    return;
+                }
+
+                // 尝试使用现代API复制
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(latestDiffResult).then(() => {
+                        showNotification("差异结果已复制到剪贴板", "success");
+                    }).catch(err => {
+                        console.error('现代API复制失败，尝试传统方法: ', err);
+                        // 失败时使用传统方法
+                        fallbackCopyText(latestDiffResult);
+                    });
+                } else {
+                    // 不支持现代API时直接使用传统方法
+                    fallbackCopyText(latestDiffResult);
+                }
+            }
+
+            // 事件监听器
+            originalText.addEventListener('input', () => {
+                // 如果正在显示处理后的内容，则清空备份
+                if (originalContentBackup !== null) {
+                    originalContentBackup = null;
+                    modifiedContentBackup = null;
+                    // 重置格式选项
+                    formatOption.value = 'original';
+                    lastFormatOption = 'original';
+                }
+                updateCharacterCount();
+                computeAndShowDiff();
+            });
+
+            modifiedText.addEventListener('input', () => {
+                // 如果正在显示处理后的内容，则清空备份
+                if (originalContentBackup !== null) {
+                    originalContentBackup = null;
+                    modifiedContentBackup = null;
+                    // 重置格式选项
+                    formatOption.value = 'original';
+                    lastFormatOption = 'original';
+                }
+                updateCharacterCount();
+                computeAndShowDiff();
+            });
+
+            // 格式选项变更事件
+            formatOption.addEventListener('change', handleFormatOptionChange);
+
+            // 当类型、显示模式或参数变化时，重新计算差异
+            diffType.addEventListener('change', computeAndShowDiff);
+            diffDisplayMode.addEventListener('change', computeAndShowDiff);
+            ignoreWhitespace.addEventListener('change', computeAndShowDiff);
+            stripTrailingCr.addEventListener('change', computeAndShowDiff);
+            showCharDiff.addEventListener('change', computeAndShowDiff);
+
+            // 屏幕尺寸变化时重新计算差异
+            window.addEventListener('resize', computeAndShowDiff);
+
+            // 交换内容按钮
+            swapContent.addEventListener('click', swapTextContents);
+
+            clearAll.addEventListener('click', () => {
+                originalText.value = '';
+                modifiedText.value = '';
+                // 清空备份
+                originalContentBackup = null;
+                modifiedContentBackup = null;
+                // 重置格式选项
+                formatOption.value = 'original';
+                lastFormatOption = 'original';
+                updateCharacterCount();
+                computeAndShowDiff();
+                showNotification("已清空所有输入", "info");
+            });
+
+            clearOriginal.addEventListener('click', () => {
+                originalText.value = '';
+                if (originalContentBackup !== null) {
+                    originalContentBackup = null;
+                    modifiedContentBackup = null;
+                    // 重置格式选项
+                    formatOption.value = 'original';
+                    lastFormatOption = 'original';
+                }
+                updateCharacterCount();
+                computeAndShowDiff();
+            });
+
+            clearModified.addEventListener('click', () => {
+                modifiedText.value = '';
+                if (originalContentBackup !== null) {
+                    originalContentBackup = null;
+                    modifiedContentBackup = null;
+                    // 重置格式选项
+                    formatOption.value = 'original';
+                    lastFormatOption = 'original';
+                }
+                updateCharacterCount();
+                computeAndShowDiff();
+            });
+
+            copyResult.addEventListener('click', copyDiffResult);
+
+            // 初始化文本
+            originalText.value = '';
+            modifiedText.value = '';
+
+            // 初始化
+            updateCharacterCount();
+            computeAndShowDiff();
+        }
+
+        // 确保页面完全加载后初始化工具
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initTool);
+        } else {
+            initTool();
+        }
+    </script>
+</body>
+</html>
