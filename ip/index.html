@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP地址 | 域名工具集</title>
+    <script>
+        // 提前发起本站数据请求
+        (function() {
+            // 创建全局Promise用于跟踪请求状态
+            window.cnfaqV4Promise = fetch('https://ipv4.cnfaq.cn')
+                .then(response => response.text())
+                .catch(err => {
+                    console.error('cnfaqV4请求失败', err);
+                    return null;
+                });
+
+            window.cnfaqV6Promise = fetch('https://ipv6.cnfaq.cn')
+                .then(response => response.text())
+                .catch(err => {
+                    console.error('cnfaqV6请求失败', err);
+                    return null;
+                });
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#64748B',
+                        danger: '#EF4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .card-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            }
+            .btn-hover {
+                @apply transition-all duration-200 hover:opacity-80;
+            }
+            .fade-in {
+                animation: fadeIn 0.3s ease-in-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .notification {
+                animation: slideIn 0.3s ease-out, slideOut 0.3s ease-in 2.7s forwards;
+            }
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            .progress-bar {
+                height: 4px;
+                background: linear-gradient(90deg, #3B82F6 0%, #10B981 100%);
+                background-size: 200% 100%;
+                animation: progress-animation 2s linear infinite;
+            }
+            @keyframes progress-animation {
+                0% { background-position: 100% 0; }
+                100% { background-position: -100% 0; }
+            }
+            .pulse {
+                animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+            .section-divider {
+                border-top: 1px dashed #e5e7eb;
+                margin: 0.75rem 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <!-- 通知提示框 - 右上方弹出 -->
+    <div id="notification" class="fixed top-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 hidden notification flex items-center max-w-xs">
+        <i id="notificationIcon" class="fa mr-2"></i>
+        <span id="notificationText"></span>
+    </div>
+
+
+    <div class="container mx-auto px-4 py-12 max-w-5xl">
+        <header class="text-center mb-12">
+            <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-gray-800 mb-4">
+                <i class="fa fa-globe text-primary mr-3"></i>IP地址 | 域名工具集
+            </h1>
+        </header>
+
+
+        <!-- 主要IP地址展示区域 -->
+        <div class="mb-8 space-y-6">
+            <div class="bg-white rounded-xl p-6 card-shadow fade-in">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <i class="fa fa-server text-primary mr-2"></i>
+                    您的IP地址
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- IPv4地址 -->
+                    <div class="border border-gray-100 rounded-lg p-5 bg-gray-50">
+                        <div class="flex items-center mb-3">
+                            <span class="text-sm font-medium text-gray-500">IPv4 地址</span>
+                            <button id="refreshV4" class="ml-2 text-neutral btn-hover text-sm" title="刷新">
+                                <i class="fa fa-refresh"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center">
+                            <span id="cnfaqV4Ip" class="font-mono break-all text-lg text-gray-800 flex-1">加载中...</span>
+                            <button id="copyCnfaqV4Ip"
+                                    onclick="copyToClipboard(document.getElementById('cnfaqV4Ip').textContent)"
+                                    class="ml-2 text-neutral btn-hover hidden" title="复制">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2">来源: 本站-IPv4</div>
+                    </div>
+
+
+                    <!-- IPv6地址 -->
+                    <div class="border border-gray-100 rounded-lg p-5 bg-gray-50">
+                        <div class="flex items-center mb-3">
+                            <span class="text-sm font-medium text-gray-500">IPv6 地址</span>
+                            <button id="refreshV6" class="ml-2 text-neutral btn-hover text-sm" title="刷新">
+                                <i class="fa fa-refresh"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center">
+                            <span id="cnfaqV6Ipv6" class="font-mono break-all text-lg text-gray-800 flex-1">加载中...</span>
+                            <button id="copyCnfaqV6Ipv6"
+                                    onclick="copyToClipboard(document.getElementById('cnfaqV6Ipv6').textContent)"
+                                    class="ml-2 text-neutral btn-hover hidden" title="复制">
+                                <i class="fa fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2">来源: 本站-IPv6</div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- 显示所有数据源的按钮 -->
+            <div class="text-center">
+                <button id="toggleAllSources" class="bg-primary text-white px-6 py-2 rounded-lg btn-hover inline-flex items-center">
+                    <i class="fa fa-list-alt mr-2"></i>
+                    <span>显示所有数据源</span>
+                </button>
+            </div>
+
+            <!-- 数据源展示容器，默认隐藏 -->
+            <div id="sourcesContainer" class="space-y-6 hidden">
+                <!-- 数据源内容将在这里动态生成 -->
+                <div class="text-center py-12 text-neutral">
+                    <div class="relative">
+                        <div class="progress-bar w-full rounded-full"></div>
+                        <div class="mt-6">
+                            <i class="fa fa-circle-o-notch fa-spin text-neutral text-2xl mb-4"></i>
+                            <p class="text-neutral">正在加载所有数据源，请稍候...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Ping检测功能区域 -->
+        <div class="mb-8 space-y-6">
+            <div class="bg-white rounded-xl p-6 card-shadow fade-in">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <i class="fa fa-ping text-primary mr-2"></i>
+                    Ping检测功能
+                </h2>
+
+                <!-- 添加浏览器拦截提示 -->
+                <div class="mb-4 bg-amber-50 border-l-4 border-amber-500 rounded p-4 flex items-start">
+                    <div class="flex-1">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3"> <!-- 增大水平间距 -->
+                            <!-- 首行文字与图标精确对齐 -->
+                            <p class="text-sm font-medium text-amber-700 leading-normal">
+                               <i class="fa fa-exclamation-triangle text-amber-600 text-lg mr-3 self-start"></i> 点击 <span class="font-bold">Ping检测</span> 按钮将连续打开多个检测页面
+                            </p>
+                            <!-- 增加间隔符和间距优化 -->
+                            <div class="mt-1 sm:mt-0 flex items-center">
+                                <span class="text-xs sm:text-sm text-amber-600 mr-2 hidden sm:inline-block">|</span>
+                                <span class="text-xs sm:text-sm text-amber-600">
+                                    默认会被浏览器拦截，
+                                    <span class="inline-block bg-amber-100 px-2 py-1 rounded ml-1 text-amber-700 border border-amber-200">
+                                        请在右上角 <i class="fa fa-caret-up"></i> 点击「允许弹窗」
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 输入区域 -->
+                <div class="mb-6">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <input
+                            type="text"
+                            id="pingTarget"
+                            placeholder="请输入IP地址或域名"
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                        >
+                        <button
+                            id="startPingBtn"
+                            onclick="startPingCheck()"
+                            class="bg-primary text-white px-6 py-3 rounded-lg btn-hover inline-flex items-center justify-center whitespace-nowrap"
+                        >
+                            <i class="fa fa-play mr-2"></i>
+                            Ping检测
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 第三方网站选项区域 - 默认隐藏 -->
+                <div id="pingSitesContainer" class="border-t border-gray-100 pt-4">
+                    <div class="flex flex-wrap items-center justify-between mb-4">
+                        <button
+                            id="togglePingSitesBtn"
+                            onclick="togglePingSites()"
+                            class="text-primary text-sm font-medium flex items-center btn-hover"
+                        >
+                            <span id="pingSitesBtnText">选择检测网站（默认全部）</span>
+                            <i id="pingSitesBtnIcon" class="fa fa-chevron-down ml-1 text-xs"></i>
+                        </button>
+
+                        <!-- 新增的四个控制按钮，优化了顺序 -->
+                        <div class="flex gap-2 mt-2 sm:mt-0">
+                            <button
+                                id="selectAllBtn"
+                                onclick="selectAllSites()"
+                                class="bg-secondary text-white px-3 py-1 rounded text-sm btn-hover flex items-center"
+                            >
+                                <i class="fa fa-check mr-1"></i>
+                                全选
+                            </button>
+                            <button
+                                id="clearAllChecksBtn"
+                                onclick="clearAllChecks()"
+                                class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm btn-hover flex items-center"
+                            >
+                                <i class="fa fa-times mr-1"></i>
+                                取消勾选
+                            </button>
+                            <button
+                                id="selectOnlyIPv4Btn"
+                                onclick="selectOnlyIPv4()"
+                                class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm btn-hover flex items-center"
+                            >
+                                <i class="fa fa-globe mr-1"></i>
+                                仅IPv4
+                            </button>
+                            <button
+                                id="selectOnlyIPv6Btn"
+                                onclick="selectOnlyIPv6()"
+                                class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-sm btn-hover flex items-center"
+                            >
+                                <i class="fa fa-globe mr-1"></i>
+                                仅IPv6
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="pingSitesList" class="grid grid-cols-2 sm:grid-cols-4 gap-3 hidden">
+                        <!-- 网站选项将通过JavaScript动态生成 -->
+                        <div id="pingSitesLoading" class="col-span-full text-center py-8 text-neutral">
+                            <i class="fa fa-circle-o-notch fa-spin text-neutral text-xl mb-2"></i>
+                            <p class="text-sm">正在加载检测网站列表...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <script>
+        // 配置数据将从外部JSON文件加载，本处只初始化本站数据
+        let checkConfigs;
+        // 存储Ping检测网站配置
+        let pingSiteConfigs = [];
+
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // 处理本站数据源
+            handleCnfaqData();
+
+            // 从JSON文件异步加载配置，覆盖checkConfigs
+            loadConfigFromJson();
+
+            // 加载Ping检测网站配置
+            loadPingSitesConfig();
+
+            // 添加显示/隐藏所有数据源的按钮事件
+            document.getElementById('toggleAllSources').addEventListener('click', function() {
+                const container = document.getElementById('sourcesContainer');
+                const button = document.getElementById('toggleAllSources');
+                const buttonText = button.querySelector('span');
+                const buttonIcon = button.querySelector('i');
+
+                if (container.classList.contains('hidden')) {
+                    container.classList.remove('hidden');
+                    buttonText.textContent = '隐藏所有数据源';
+                    buttonIcon.className = 'fa fa-chevron-up mr-2';
+
+                    // 如果是第一次显示，渲染所有数据源
+                    if (container.innerHTML.includes('正在加载所有数据源')) {
+                        renderSources();
+                        // 加载所有数据源数据
+                        checkConfigs.forEach(config => {
+                            if (config.id !== 'cnfaqV4' && config.id !== 'cnfaqV6') {
+                                unifiedCheck(config.id);
+                            }
+                        });
+                    }
+                } else {
+                    container.classList.add('hidden');
+                    buttonText.textContent = '显示所有数据源';
+                    buttonIcon.className = 'fa fa-list-alt mr-2';
+                }
+            });
+
+            // 添加刷新按钮事件
+            document.getElementById('refreshV4').addEventListener('click', function() {
+                unifiedCheck('cnfaqV4');
+            });
+
+            document.getElementById('refreshV6').addEventListener('click', function() {
+                unifiedCheck('cnfaqV6');
+            });
+        });
+
+
+        // 切换Ping检测网站列表的显示/隐藏状态
+        function togglePingSites() {
+            const listContainer = document.getElementById('pingSitesList');
+            const btnText = document.getElementById('pingSitesBtnText');
+            const btnIcon = document.getElementById('pingSitesBtnIcon');
+
+            const isHidden = listContainer.classList.contains('hidden');
+
+            if (isHidden) {
+                listContainer.classList.remove('hidden');
+                btnText.textContent = '收起检测网站选择';
+                btnIcon.className = 'fa fa-chevron-up ml-1 text-xs';
+            } else {
+                listContainer.classList.add('hidden');
+                btnText.textContent = '选择检测网站（默认全部）';
+                btnIcon.className = 'fa fa-chevron-down ml-1 text-xs';
+            }
+        }
+
+
+        // 全选所有网站
+        function selectAllSites() {
+            if (!pingSiteConfigs || pingSiteConfigs.length === 0) return;
+
+            let count = 0;
+            pingSiteConfigs.forEach(site => {
+                const checkbox = document.getElementById(`pingSite_${site.id}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    count++;
+                }
+            });
+
+            showNotification(`已全选 ${count} 个检测网站`);
+        }
+
+
+        // 取消所有勾选
+        function clearAllChecks() {
+            if (!pingSiteConfigs || pingSiteConfigs.length === 0) return;
+
+            pingSiteConfigs.forEach(site => {
+                const checkbox = document.getElementById(`pingSite_${site.id}`);
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+            });
+
+            showNotification('已取消所有网站勾选');
+        }
+
+
+        // 仅勾选支持IPv4的网站
+        function selectOnlyIPv4() {
+            if (!pingSiteConfigs || pingSiteConfigs.length === 0) return;
+
+            let count = 0;
+            pingSiteConfigs.forEach(site => {
+                const checkbox = document.getElementById(`pingSite_${site.id}`);
+                if (checkbox) {
+                    const shouldCheck = site.ipv4 === true;
+                    checkbox.checked = shouldCheck;
+                    if (shouldCheck) count++;
+                }
+            });
+
+            showNotification(`已勾选 ${count} 个IPv4检测网站`);
+        }
+
+
+        // 仅勾选支持IPv6的网站
+        function selectOnlyIPv6() {
+            if (!pingSiteConfigs || pingSiteConfigs.length === 0) return;
+
+            let count = 0;
+            pingSiteConfigs.forEach(site => {
+                const checkbox = document.getElementById(`pingSite_${site.id}`);
+                if (checkbox) {
+                    const shouldCheck = site.ipv6 === true;
+                    checkbox.checked = shouldCheck;
+                    if (shouldCheck) count++;
+                }
+            });
+
+            showNotification(`已勾选 ${count} 个IPv6检测网站`);
+        }
+
+
+        // 处理本站数据源
+        function handleCnfaqData() {
+            // 处理IPv4
+            Promise.resolve(window.cnfaqV4Promise).then(ip => {
+                if (ip) {
+                    setResult('cnfaqV4Ip', ip);
+                    showNotification('IPv4地址已更新', true);
+                } else {
+                    setError('cnfaqV4Ip', '获取失败');
+                }
+            });
+
+            // 处理IPv6
+            Promise.resolve(window.cnfaqV6Promise).then(ip => {
+                if (ip) {
+                    setResult('cnfaqV6Ipv6', ip);
+                    showNotification('IPv6地址已更新', true);
+                } else {
+                    setError('cnfaqV6Ipv6', '获取失败');
+                }
+            });
+        }
+
+
+        // 从JSON文件加载配置
+        function loadConfigFromJson() {
+            fetch('my_ip_api_config.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`配置文件加载失败: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(configs => {
+                    checkConfigs = configs;
+                })
+                .catch(err => {
+                    console.error('加载配置文件出错:', err);
+
+                    const container = document.getElementById('sourcesContainer');
+                    container.innerHTML = `
+                        <div class="bg-white rounded-xl p-6 text-center card-shadow fade-in">
+                            <i class="fa fa-exclamation-circle text-danger text-2xl mb-4"></i>
+                            <p class="text-danger">配置文件加载失败，请检查my_ip_api_config.json是否存在</p>
+                            <p class="text-neutral text-sm mt-2">错误信息: ${err.message}</p>
+                        </div>
+                    `;
+                });
+        }
+
+
+        // 加载Ping检测网站配置
+        function loadPingSitesConfig() {
+            fetch('ip_ping_site_config.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Ping检测网站配置加载失败: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(configs => {
+                    pingSiteConfigs = configs;
+                    renderPingSites();
+                })
+                .catch(err => {
+                    console.error('加载Ping检测网站配置出错:', err);
+
+                    const loadingIndicator = document.getElementById('pingSitesLoading');
+                    if (loadingIndicator) {
+                        loadingIndicator.innerHTML = `
+                            <i class="fa fa-exclamation-circle text-danger text-xl mb-2"></i>
+                            <p class="text-danger text-sm">配置文件加载失败，请检查ip_ping_site_config.json是否存在</p>
+                            <p class="text-neutral text-xs mt-1">错误信息: ${err.message}</p>
+                        `;
+                    }
+                });
+        }
+
+
+        // 渲染Ping检测网站选项
+        function renderPingSites() {
+            const container = document.getElementById('pingSitesList');
+            const loadingIndicator = document.getElementById('pingSitesLoading');
+
+            // 移除加载提示
+            if (loadingIndicator && loadingIndicator.parentNode === container) {
+                container.removeChild(loadingIndicator);
+            }
+
+            if (pingSiteConfigs.length === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.className = 'col-span-full text-center py-8 text-neutral';
+                emptyMessage.innerHTML = '<p>未找到可用的检测网站配置</p>';
+                container.appendChild(emptyMessage);
+                return;
+            }
+
+            pingSiteConfigs.forEach(site => {
+                const siteItem = document.createElement('div');
+                siteItem.className = 'flex items-center p-3 border border-gray-100 rounded-lg bg-gray-50';
+
+                // 构建支持类型的显示文本
+                const supportedTypes = [];
+                if (site.ipv4) supportedTypes.push('IPv4');
+                if (site.ipv6) supportedTypes.push('IPv6');
+                if (site.domain) supportedTypes.push('域名');
+
+                siteItem.innerHTML = `
+                    <input
+                        type="checkbox"
+                        id="pingSite_${site.id}"
+                        class="mr-3 h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded ping-site-checkbox"
+                        checked
+                    >
+                    <label for="pingSite_${site.id}" class="flex-1 cursor-pointer">
+                        <div class="font-medium text-gray-800">${site.name}</div>
+                        <div class="text-xs text-gray-500">支持: ${supportedTypes.join(', ')}</div>
+                    </label>
+                `;
+
+                container.appendChild(siteItem);
+            });
+        }
+
+
+        // 开始Ping检测
+        function startPingCheck() {
+            const inputElement = document.getElementById('pingTarget');
+            const rawTarget = inputElement.value.trim();
+
+            if (!rawTarget) {
+                showNotification('请输入IP地址或域名', false);
+                inputElement.focus();
+                return;
+            }
+
+            // 1. 首先获取类型
+            const targetType = determineInputType(rawTarget);
+
+            // 2. 根据类型处理实际值
+            let targetValue;
+            if (targetType === 'domain') {
+                targetValue = normalizeDomain(rawTarget);
+            } else {
+                targetValue = rawTarget;  // IP类型直接使用原始输入
+            }
+
+            // 收集选中的且支持该类型的网站
+            const selectedSites = pingSiteConfigs.filter(site => {
+                const isChecked = document.getElementById(`pingSite_${site.id}`)?.checked;
+                const supportsType = (targetType === 'ipv4' && site.ipv4) ||
+                                    (targetType === 'ipv6' && site.ipv6) ||
+                                    (targetType === 'domain' && site.domain);
+
+                return isChecked && supportsType;
+            });
+
+            if (selectedSites.length === 0) {
+                showNotification('没有找到支持该类型的选中网站', false);
+                return;
+            }
+
+            // 打开每个选中网站的检测页面
+            selectedSites.forEach(site => {
+                const url = site.url.replace('$ip', encodeURIComponent(targetValue));
+                window.open(url, '_blank');
+            });
+
+            showNotification(`已在新窗口打开 ${selectedSites.length} 个检测页面`);
+        }
+
+
+        // 判断输入类型：仅返回类型标识符（ipv4/ipv6/domain）
+        function determineInputType(input) {
+            if (isIPv4(input)) {
+                return 'ipv4';
+            }
+
+            // 判断是否为IPv6（检查是否只包含合法字符）
+            const ipv6Regex = /^[0-9a-fA-F:]+$/;
+            if (ipv6Regex.test(input)) {
+                return 'ipv6';
+            }
+
+            return 'domain';
+        }
+
+        // 单独处理域名格式化
+        function normalizeDomain(domain) {
+            let normalized = domain;
+            // 去除http/https头
+            normalized = normalized.replace(/^https?:\/\//, '');
+
+            // 去除路径部分
+            const pathIndex = normalized.indexOf('/');
+            if (pathIndex !== -1) {
+                normalized = normalized.substring(0, pathIndex);
+            }
+
+            // 去除端口号
+            const portIndex = normalized.indexOf(':');
+            if (portIndex !== -1) {
+                normalized = normalized.substring(0, portIndex);
+            }
+
+            return normalized;
+        }
+
+        // 判断是否为IPv4地址的函数
+        function isIPv4(ip) {
+            if (!ip) return false;
+            // IPv4地址正则表达式：四组0-255的数字，用点分隔
+            const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+            if (!ipv4Regex.test(ip)) return false;
+
+
+            // 检查每组数字是否在0-255范围内
+            const parts = ip.split('.');
+            return parts.every(part => parseInt(part) >= 0 && parseInt(part) <= 255);
+        }
+
+
+        // 显示通知提示
+        function showNotification(message, isSuccess = true) {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            const notificationIcon = document.getElementById('notificationIcon');
+
+
+            notificationText.textContent = message;
+            notificationIcon.className = `fa mr-2 ${isSuccess ? 'fa-check-circle text-secondary' : 'fa-exclamation-circle text-danger'}`;
+
+
+            // 先隐藏再显示以重新触发动画
+            notification.classList.add('hidden');
+            setTimeout(() => {
+                notification.classList.remove('hidden');
+            }, 10);
+
+
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+
+        // 复制到剪贴板功能
+        function copyToClipboard(text) {
+            // 跳过特殊状态文本
+            if (text === '加载中...' || text === '获取失败' || text === '-' || text === '无数据' || text === '无IPv4地址' || text === '无IPv6地址') {
+                showNotification('没有可复制的内容', false);
+                return;
+            }
+
+
+            // 先尝试现代API
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text)
+                    .then(() => showNotification('复制成功'))
+                    .catch(() => {
+                        // 现代API失败，使用传统方法
+                        fallbackCopyText(text);
+                    });
+            } else {
+                // 不支持现代API，直接使用传统方法
+                fallbackCopyText(text);
+            }
+        }
+
+
+        // 传统复制方法（使用 textarea 和 execCommand）
+        function fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification('文本复制成功！');
+                } else {
+                    throw new Error('execCommand 复制失败');
+                }
+            } catch (err) {
+                console.error('复制失败:', err);
+                showNotification('复制失败，请手动复制', false);
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+
+
+        // 控制复制按钮显示/隐藏
+        function toggleCopyButton(ipElementId, copyButtonId) {
+            const ipElement = document.getElementById(ipElementId);
+            const copyButton = document.getElementById(copyButtonId);
+            if (!ipElement || !copyButton) return;
+
+
+            const ipText = ipElement.textContent;
+
+
+            // 正常IP地址显示复制按钮，其他状态隐藏
+            if (ipText && ipText !== '加载中...' && ipText !== '获取失败' && ipText !== '-' && !ipText.includes('无数据') && !ipText.includes('无IPv4') && !ipText.includes('无IPv6')) {
+                copyButton.classList.remove('hidden');
+            } else {
+                copyButton.classList.add('hidden');
+            }
+        }
+
+
+        // 工具函数：设置加载状态
+        function setLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+
+            element.textContent = '加载中...';
+            element.className = element.className.replace('text-danger', '').replace('text-gray-400', '');
+            element.classList.add('text-neutral', 'pulse');
+
+
+            // 更新对应复制按钮状态
+            const copyButtonId = 'copy' + capitalizeFirstLetter(elementId);
+            if (document.getElementById(copyButtonId)) {
+                toggleCopyButton(elementId, copyButtonId);
+            }
+        }
+
+
+        // 工具函数：设置结果
+        function setResult(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+
+            element.textContent = value;
+            element.className = element.className.replace('text-danger', '').replace('text-neutral', '').replace('text-gray-400', '').replace('pulse', '');
+            element.classList.add('text-gray-800');
+
+
+            // 更新对应复制按钮状态
+            const copyButtonId = 'copy' + capitalizeFirstLetter(elementId);
+            if (document.getElementById(copyButtonId)) {
+                toggleCopyButton(elementId, copyButtonId);
+            }
+        }
+
+
+        // 工具函数：设置错误信息
+        function setError(elementId, message, errorType = '') {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+
+            element.textContent = message;
+            element.className = element.className.replace('text-danger', '').replace('text-neutral', '').replace('pulse', '');
+            element.classList.add('text-gray-400');
+
+
+            // 根据错误类型添加额外样式（可选）
+            if (errorType.startsWith('HTTP_5')) {
+                element.classList.add('font-italic');  // 服务器错误添加斜体
+            }
+
+
+            // 更新对应复制按钮状态
+            const copyButtonId = 'copy' + capitalizeFirstLetter(elementId);
+            if (document.getElementById(copyButtonId)) {
+                toggleCopyButton(elementId, copyButtonId);
+            }
+        }
+
+
+        // 工具函数：设置无数据信息
+        function setNoData(elementId, message = '无数据') {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+
+            element.textContent = message;
+            element.className = element.className.replace('text-danger', '').replace('text-neutral', '').replace('pulse', '');
+            element.classList.add('text-gray-400');
+
+
+            // 更新对应复制按钮状态
+            const copyButtonId = 'copy' + capitalizeFirstLetter(elementId);
+            if (document.getElementById(copyButtonId)) {
+                toggleCopyButton(elementId, copyButtonId);
+            }
+        }
+
+
+        // 生成所有数据源的展示区域
+        function renderSources() {
+            const container = document.getElementById('sourcesContainer');
+            container.innerHTML = ''; // 清空加载提示
+
+
+            checkConfigs.forEach(config => {
+                // 跳过本站数据源，已经在主区域显示
+                if (config.id === 'cnfaqV4' || config.id === 'cnfaqV6') {
+                    return;
+                }
+
+
+                const ids = getElementIds(config.id);
+
+
+                // 创建主卡片容器
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl overflow-hidden card-shadow fade-in';
+
+
+                // 主信息行HTML
+                const mainContent = `
+                    <div class="p-6">
+                        <div class="grid grid-cols-12 gap-4 items-center">
+                            <!-- 源名称和刷新按钮 -->
+                            <div class="col-span-12 md:col-span-3 flex items-center">
+                                <span class="font-semibold text-gray-800 mr-2">${config.name}</span>
+                                <button onclick="unifiedCheck('${config.id}')" class="text-neutral btn-hover" title="刷新">
+                                    <i class="fa fa-refresh"></i>
+                                </button>
+                            </div>
+
+
+                            <!-- IPv4地址 -->
+                            <div class="col-span-12 md:col-span-3 flex items-center">
+                                <span id="${ids.resultElements.ipv4}" class="font-mono break-all flex-1 text-right">-</span>
+                                <button id="copy${capitalizeFirstLetter(ids.resultElements.ipv4)}"
+                                        onclick="copyToClipboard(document.getElementById('${ids.resultElements.ipv4}').textContent)"
+                                        class="ml-1 text-neutral btn-hover hidden" title="复制">
+                                    <i class="fa fa-copy"></i>
+                                </button>
+                            </div>
+
+
+                            <!-- IPv6地址 -->
+                            <div class="col-span-12 md:col-span-3 flex items-center">
+                                <span id="${ids.resultElements.ipv6}" class="font-mono break-all flex-1 text-right">-</span>
+                                <button id="copy${capitalizeFirstLetter(ids.resultElements.ipv6)}"
+                                        onclick="copyToClipboard(document.getElementById('${ids.resultElements.ipv6}').textContent)"
+                                        class="ml-1 text-neutral btn-hover hidden" title="复制">
+                                    <i class="fa fa-copy"></i>
+                                </button>
+                            </div>
+
+
+                            <!-- 展开/收起按钮 -->
+                            <div class="col-span-12 md:col-span-2 flex justify-end">
+                                <button id="${ids.detailsBtnId}"
+                                        onclick="toggleDetails('${ids.detailsId}', '${ids.btnTextId}', '${ids.btnIconId}')"
+                                        class="text-primary text-sm font-medium flex items-center btn-hover">
+                                    <span id="${ids.btnTextId}">查看详情</span>
+                                    <i id="${ids.btnIconId}" class="fa fa-chevron-down ml-1 text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- 详细信息 -->
+                    <div id="${ids.detailsId}" class="hidden bg-gray-50 p-6 border-t border-gray-100 fade-in">
+                        <h4 class="font-medium text-gray-700 mb-4">详细信息</h4>
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <tbody id="${ids.detailsTableId}" class="divide-y divide-gray-200">
+                                <!-- 详细信息将通过JS动态填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+
+                card.innerHTML = mainContent;
+                container.appendChild(card);
+            });
+        }
+
+
+        // 辅助函数：首字母大写
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+
+        // 工具函数：填充详细信息表格
+        function populateDetailsTable(tableId, data, excludeKeys = []) {
+            const tableBody = document.getElementById(tableId);
+            if (!tableBody) return;
+
+
+            // 找到对应的配置项
+            const config = checkConfigs.find(c => getElementIds(c.id).detailsTableId === tableId);
+            if (!config) return;
+
+
+            const detailsBtn = document.getElementById(getElementIds(config.id).detailsBtnId);
+
+
+            tableBody.innerHTML = ''; // 清空现有内容
+
+
+            // 过滤掉空值和需要排除的键
+            const filteredData = {};
+            if (data && typeof data === 'object') {
+                for (const [key, value] of Object.entries(data)) {
+                    if (!excludeKeys.includes(key) && value !== null && value !== undefined && value !== '') {
+                        filteredData[key] = value;
+                    }
+                }
+            }
+
+
+            // 如果没有数据，显示提示并禁用按钮
+            if (Object.keys(filteredData).length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td colspan="2" class="px-4 py-3 text-sm text-gray-500">
+                        无详细信息
+                    </td>
+                `;
+                tableBody.appendChild(row);
+
+
+                // 禁用详情按钮
+                if (detailsBtn) {
+                    detailsBtn.disabled = true;
+                    detailsBtn.classList.remove('text-primary', 'btn-hover');
+                    detailsBtn.classList.add('text-gray-400', 'cursor-not-allowed');
+                }
+            } else {
+                // 启用详情按钮
+                if (detailsBtn) {
+                    detailsBtn.disabled = false;
+                    detailsBtn.classList.remove('text-gray-400', 'cursor-not-allowed');
+                    detailsBtn.classList.add('text-primary', 'btn-hover');
+                }
+
+
+                // 填充数据
+                for (const [key, value] of Object.entries(filteredData)) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-4 py-3 text-sm font-medium text-gray-500">${formatKey(key)}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900 font-mono">${formatValue(value)}</td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+            }
+        }
+
+
+        // 工具函数：格式化键名（首字母大写，下划线转空格）
+        function formatKey(key) {
+            return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+        }
+
+
+        // 工具函数：格式化值以便显示
+        function formatValue(value) {
+            if (value === null) return 'null';
+            if (value === undefined) return 'undefined';
+
+            // 处理日期对象
+            if (value instanceof Date) {
+                return value.toISOString();
+            }
+
+            // 处理数组和对象
+            if (typeof value === 'object') {
+                try {
+                    // 尝试转换为格式化的JSON字符串
+                    return JSON.stringify(value, null, 2);
+                } catch (e) {
+                    // 如果转换失败，使用默认toString
+                    return value.toString();
+                }
+            }
+
+            // 处理其他类型
+            return value.toString();
+        }
+
+
+        // 展开/收起详情功能
+        function toggleDetails(detailsId, btnTextId, btnIconId) {
+            const detailsElement = document.getElementById(detailsId);
+            const btnTextElement = document.getElementById(btnTextId);
+            const btnIconElement = document.getElementById(btnIconId);
+
+
+            if (!detailsElement || !btnTextElement || !btnIconElement) return;
+
+
+            const isHidden = detailsElement.classList.contains('hidden');
+
+
+            // 切换显示状态
+            if (isHidden) {
+                detailsElement.classList.remove('hidden');
+            } else {
+                detailsElement.classList.add('hidden');
+            }
+
+
+            // 更新按钮文本和图标
+            btnTextElement.textContent = isHidden ? '收起详情' : '查看详情';
+            btnIconElement.className = isHidden ? 'fa fa-chevron-up ml-1 text-xs' : 'fa fa-chevron-down ml-1 text-xs';
+        }
+
+
+        // 统一的查询函数，支持主IP和副IP字段
+        function unifiedCheck(configId) {
+            const config = checkConfigs.find(c => c.id === configId);
+            if (!config) return;
+
+
+            const ids = getElementIds(configId);
+
+
+            // 设置加载状态
+            ids.loadingIds.forEach(id => setLoading(id));
+
+
+            fetch(config.url)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return config.responseType === 'json' ? response.json() : response.text();
+                })
+                .then(data => {
+                    // 处理文本响应
+                    let responseData = data;
+
+
+                    // 格式预处理
+                    if (config.responseType === 'jsonp') {
+                        // 处理JSONP格式
+                        let jsonString = data;
+                        // 检查是否是JSONP格式（函数调用包裹的JSON）
+                        const jsonpMatch = extractJsonpContent(data);
+                        if (jsonpMatch) {
+                            jsonString = jsonpMatch;
+                        }
+                        try {
+                            responseData = JSON.parse(jsonString);
+                        } catch (e) {
+                            console.error(`无法解析文本响应为JSON: ${e.message}`);
+                            responseData = null;
+                        }
+                    } else if (config.responseType === 'json') {
+                        if (typeof data === 'string') {
+                            // 处理Json内容的字符串
+                            try {
+                                responseData = JSON.parse(data);
+                            } catch (e) {
+                                console.error(`无法解析文本响应为JSON: ${e.message}`);
+                                responseData = null;
+                            }
+                        }
+                    }
+
+                    // 处理data字段配置
+                    if (config.data && config.data.trim() !== '') {
+                        // 如果配置了data字段，尝试从响应中提取该字段
+                        if (typeof responseData === 'object' && responseData !== null && responseData[config.data]) {
+                            responseData = responseData[config.data];
+                        } else {
+                            console.error(`配置的data字段"${config.data}"在响应中不存在或无效`);
+                        }
+                    }
+
+
+                    // 提取主IP地址
+                    let primaryIp;
+                    if (config.ipField && config.ipField.trim() !== '' && typeof responseData === 'object' && responseData !== null) {
+                        primaryIp = getNestedValue(responseData, config.ipField);
+                    } else if (config.responseType === 'text') {
+                        // 对于文本响应，直接使用文本值
+                        primaryIp = typeof responseData === 'string' ? responseData.trim() : '';
+                    }
+
+
+                    // 提取副IP地址（如果配置）
+                    let secondaryIp = null;
+                    if (config.ipFieldSecondary && config.ipFieldSecondary.trim() !== '' && typeof responseData === 'object' && responseData !== null) {
+                        secondaryIp = getNestedValue(responseData, config.ipFieldSecondary);
+                    }
+
+
+                    // 处理IP显示逻辑
+                    // 先重置显示状态
+                    setNoData(ids.resultElements.ipv4, '无IPv4地址');
+                    setNoData(ids.resultElements.ipv6, '无IPv6地址');
+
+
+                    // 处理主IP
+                    if (primaryIp) {
+                        if (isIPv4(primaryIp)) {
+                            setResult(ids.resultElements.ipv4, primaryIp);
+                        } else {
+                            setResult(ids.resultElements.ipv6, primaryIp);
+                        }
+                    }
+
+
+                    // 处理副IP（如果存在）
+                    if (secondaryIp && secondaryIp !== primaryIp) {
+                        if (isIPv4(secondaryIp)) {
+                            setResult(ids.resultElements.ipv4, secondaryIp);
+                        } else {
+                            setResult(ids.resultElements.ipv6, secondaryIp);
+                        }
+                    }
+
+
+                    // 处理详情表格
+                    const detailsData = config.responseType === 'json' ? responseData : {};
+                    populateDetailsTable(ids.detailsTableId, detailsData, config.excludeFields);
+
+
+                    showNotification(`${config.name} 刷新成功`);
+                })
+                .catch(err => {
+                    console.error(`${config.name} 查询失败:`, err);
+                    // 错误分类处理
+                    let errorType = 'UNKNOWN';
+                    let errorMsg = '服务不可用';
+
+
+                    if (err instanceof TypeError) {
+                        // 网络级错误（DNS解析失败、CORS、连接超时等）
+                        errorType = 'NETWORK';
+                        errorMsg = '网络错误，网站不可达';
+                    } else if (err.status) {
+                        // HTTP状态码错误
+                        errorType = 'HTTP_' + err.status;
+                        errorMsg = `服务异常 (${err.status})`;
+                    }
+
+
+                    // 设置错误状态 - 区分全局错误和详细错误
+                    setError(ids.loadingIds[0], `获取失败`); // 全局简短错误
+                    setError(ids.loadingIds[1], `${errorMsg}`, errorType); // 详细错误信息
+
+
+                    populateDetailsTable(ids.detailsTableId, {}, config.excludeFields);
+                    showNotification(`${config.name} 刷新失败`, false);
+                });
+        }
+
+
+        // 辅助函数：提取JSONP内容
+        function extractJsonpContent(jsonpString) {
+            if (typeof jsonpString !== 'string') return null;
+
+            // 更健壮的正则表达式，匹配各种JSONP格式
+            const jsonpPattern = /^\s*(?:[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*)*\s*)?\(\s*([\s\S]*?)\s*\)\s*(?:;|$)/;
+            const match = jsonpString.match(jsonpPattern);
+
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+
+            return null;
+        }
+
+
+        // 辅助函数：获取嵌套对象的值（支持点表示法）
+        function getNestedValue(obj, path) {
+            if (!obj || typeof obj !== 'object') return null;
+
+            // 如果路径是点分隔的，拆分为数组
+            const pathArray = path.split('.');
+            let current = obj;
+
+            for (const key of pathArray) {
+                if (current[key] === undefined) {
+                    return null; // 路径不存在
+                }
+                current = current[key];
+            }
+
+            return current;
+        }
+
+        // 工具函数：通过ID生成相关元素ID
+        function getElementIds(configId) {
+            return {
+                loadingIds: [`${configId}Ip`, `${configId}Ipv6`],
+                resultElements: {
+                    ipv4: `${configId}Ip`,
+                    ipv6: `${configId}Ipv6`
+                },
+                detailsTableId: `${configId}DetailsTable`,
+                detailsId: `${configId}Details`,
+                detailsBtnId: `${configId}DetailsBtn`,
+                btnTextId: `${configId}BtnText`,
+                btnIconId: `${configId}BtnIcon`
+            };
+        }
+    </script>
+<script src="/floating-ball/load-floating-ball.js"></script>
+</body>
+</html>
+

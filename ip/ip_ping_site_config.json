@@ -1,0 +1,66 @@
+[
+    {
+        "id": "sirV4",
+        "name": "sir.net-IPv4",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "url": "https://sir.net/$ip"
+    },
+    {
+        "id": "sirV6",
+        "name": "sir.net-IPv6",
+        "ipv4": false,
+        "ipv6": true,
+        "domain": true,
+        "url": "https://sir.net/ipv6/$ip"
+    },
+    {
+        "id": "pingpeV4",
+        "name": "ping.pe-IPv4",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "url": "https://ping.pe/$ip"
+    },
+    {
+        "id": "pingpeV6",
+        "name": "ping.pe-IPv6",
+        "ipv4": false,
+        "ipv6": true,
+        "domain": true,
+        "url": "https://ping6.ping.pe/$ip"
+    },
+    {
+        "id": "pingpro",
+        "name": "ping.pro",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "url": "https://ping.pro/$ip"
+    },
+    {
+        "id": "chinaz",
+        "name": "chinaz",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "url": "https://www.itdog.cn/ping_ipv6/$ip"
+    },
+    {
+        "id": "itdog",
+        "name": "itdog.cn",
+        "ipv4": false,
+        "ipv6": true,
+        "domain": true,
+        "url": "https://www.itdog.cn/ping_ipv6/$ip"
+    },
+    {
+        "id": "ipw",
+        "name": "ipw.cn",
+        "ipv4": false,
+        "ipv6": true,
+        "domain": false,
+        "url": "https://ipw.cn/ipv6ping/?host=$ip"
+    }
+]

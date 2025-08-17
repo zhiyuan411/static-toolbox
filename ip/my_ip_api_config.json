@@ -1,0 +1,100 @@
+[
+    {
+        "id": "cnfaqV4",
+        "name": "本站-IPv4",
+        "url": "https://ipv4.cnfaq.cn",
+        "responseType": "text",
+        "ipField": null,
+        "ipFieldSecondary": null,
+        "excludeFields": []
+    },
+    {
+        "id": "cnfaqV6",
+        "name": "本站-IPv6",
+        "url": "https://ipv6.cnfaq.cn",
+        "responseType": "text",
+        "ipField": null,
+        "ipFieldSecondary": null,
+        "excludeFields": []
+    },
+    {
+        "id": "ipcn",
+        "name": "ip.cn",
+        "url": "https://my.ip.cn/json/",
+        "responseType": "json",
+        "data": "data",
+        "ipField": "ip",
+        "ipFieldSecondary": null,
+        "excludeFields": ["ip"]
+    },
+    {
+        "id": "cloudflare",
+        "name": "cloudflare.com",
+        "url": "https://speed.cloudflare.com/meta",
+        "responseType": "json",
+        "data": null,
+        "ipField": "clientIp",
+        "ipFieldSecondary": null,
+        "excludeFields": ["clientIp", "hostname"]
+    },
+    {
+        "id": "ipinfo",
+        "name": "ipinfo.io",
+        "url": "https://ipinfo.io/json",
+        "responseType": "json",
+        "data": null,
+        "ipField": "ip",
+        "ipFieldSecondary": null,
+        "excludeFields": ["ip", "readme"]
+    },
+    {
+        "id": "ipip",
+        "name": "ipip.net",
+        "url": "https://myip.ipip.net/json",
+        "responseType": "json",
+        "data": "data",
+        "ipField": "ip",
+        "ipFieldSecondary": null,
+        "excludeFields": ["ip"]
+    },
+    {
+        "id": "ipifyV4",
+        "name": "ipify-IPv4",
+        "url": "https://api.ipify.org?format=json",
+        "responseType": "json",
+        "data": null,
+        "ipField": "ip",
+        "ipFieldSecondary": null,
+        "excludeFields": ["ip"]
+    },
+    {
+        "id": "ipifyV6",
+        "name": "ipify-IPv6",
+        "url": "https://api64.ipify.org?format=json",
+        "responseType": "json",
+        "data": null,
+        "ipField": "ip",
+        "ipFieldSecondary": null,
+        "excludeFields": ["ip"]
+    },
+    {
+        "id": "ipapi",
+        "name": "ipapi.co",
+        "url": "https://ipapi.co/json",
+        "responseType": "json",
+        "data": null,
+        "ipField": "ip",
+        "ipFieldSecondary": null,
+        "excludeFields": ["ip"]
+    },
+    {
+        "id": "icanhazip",
+        "name": "icanhazip.com",
+        "url": "https://icanhazip.com",
+        "responseType": "text",
+        "data": null,
+        "ipField": null,
+        "ipFieldSecondary": null,
+        "excludeFields": []
+    }
+]
