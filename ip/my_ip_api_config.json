@@ -4,6 +4,7 @@
         "name": "本站-IPv4",
         "url": "https://ipv4.cnfaq.cn",
         "responseType": "text",
+        "data": null,
         "ipField": null,
         "ipFieldSecondary": null,
         "excludeFields": []
@@ -13,6 +14,7 @@
         "name": "本站-IPv6",
         "url": "https://ipv6.cnfaq.cn",
         "responseType": "text",
+        "data": null,
         "ipField": null,
         "ipFieldSecondary": null,
         "excludeFields": []
