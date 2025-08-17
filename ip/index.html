@@ -24,7 +24,7 @@
         })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -194,9 +194,10 @@
                 <div class="mb-4 bg-amber-50 border-l-4 border-amber-500 rounded p-4 flex items-start">
                     <div class="flex-1">
                         <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3"> <!-- 增大水平间距 -->
+                            <i class="fa fa-exclamation-triangle text-amber-600 text-lg mr-3 self-start"></i>
                             <!-- 首行文字与图标精确对齐 -->
                             <p class="text-sm font-medium text-amber-700 leading-normal">
-                               <i class="fa fa-exclamation-triangle text-amber-600 text-lg mr-3 self-start"></i> 点击 <span class="font-bold">Ping检测</span> 按钮将连续打开多个检测页面
+                                点击 <span class="font-bold">Ping检测</span> 按钮将连续打开多个检测页面
                             </p>
                             <!-- 增加间隔符和间距优化 -->
                             <div class="mt-1 sm:mt-0 flex items-center">
@@ -298,7 +299,7 @@
 
     <script>
         // 配置数据将从外部JSON文件加载，本处只初始化本站数据
-        let checkConfigs;
+        let checkConfigs = [];
         // 存储Ping检测网站配置
         let pingSiteConfigs = [];
 
@@ -310,7 +311,7 @@
             handleCnfaqData();
 
             // 从JSON文件异步加载配置，覆盖checkConfigs
-            loadConfigFromJson();
+            loadMyIpConfig();
 
             // 加载Ping检测网站配置
             loadPingSitesConfig();
@@ -447,28 +448,28 @@
         function handleCnfaqData() {
             // 处理IPv4
             Promise.resolve(window.cnfaqV4Promise).then(ip => {
-                if (ip) {
+                if (ip && isIPv4(ip)) {
                     setResult('cnfaqV4Ip', ip);
                     showNotification('IPv4地址已更新', true);
                 } else {
-                    setError('cnfaqV4Ip', '获取失败');
+                    setNoData('cnfaqV4Ip', '无IPv4地址');
                 }
             });
 
             // 处理IPv6
             Promise.resolve(window.cnfaqV6Promise).then(ip => {
-                if (ip) {
+                if (ip && isIPv6(ip)) {
                     setResult('cnfaqV6Ipv6', ip);
                     showNotification('IPv6地址已更新', true);
                 } else {
-                    setError('cnfaqV6Ipv6', '获取失败');
+                    setNoData('cnfaqV6Ipv6', '无IPv6地址');
                 }
             });
         }
 
 
-        // 从JSON文件加载配置
-        function loadConfigFromJson() {
+        // 加载我的IP的API配置
+        function loadMyIpConfig() {
             fetch('my_ip_api_config.json')
                 .then(response => {
                     if (!response.ok) {
@@ -621,9 +622,7 @@
                 return 'ipv4';
             }
 
-            // 判断是否为IPv6（检查是否只包含合法字符）
-            const ipv6Regex = /^[0-9a-fA-F:]+$/;
-            if (ipv6Regex.test(input)) {
+            if (isIPv6(input)) {
                 return 'ipv6';
             }
 
@@ -662,6 +661,17 @@
             // 检查每组数字是否在0-255范围内
             const parts = ip.split('.');
             return parts.every(part => parseInt(part) >= 0 && parseInt(part) <= 255);
+        }
+
+        // 判断是否为IPv6地址的函数
+        function isIPv6(ip) {
+            if (!ip) return false;
+            // 判断是否为IPv6（检查是否只包含合法字符）
+            const ipv6Regex = /^[0-9a-fA-F:]+$/;
+            if (ipv6Regex.test(ip)) {
+                return true;
+            }
+            return false;
         }
 
 
@@ -1149,7 +1159,7 @@
                     if (primaryIp) {
                         if (isIPv4(primaryIp)) {
                             setResult(ids.resultElements.ipv4, primaryIp);
-                        } else {
+                        } else if(isIPv6(primaryIp)) {
                             setResult(ids.resultElements.ipv6, primaryIp);
                         }
                     }
@@ -1159,7 +1169,7 @@
                     if (secondaryIp && secondaryIp !== primaryIp) {
                         if (isIPv4(secondaryIp)) {
                             setResult(ids.resultElements.ipv4, secondaryIp);
-                        } else {
+                        } else if(isIPv6(secondaryIp)) {
                             setResult(ids.resultElements.ipv6, secondaryIp);
                         }
                     }
