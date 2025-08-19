@@ -1,0 +1,180 @@
+[
+    {
+        "id": "ipcn",
+        "name": "ip.cn",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "info": {
+            "url": "https://proxy.cnfaq.cn?user_ua=1&referer=https://ip.cn/&url=https://ip.cn/ip/$ip.html",
+            "postParams": null,
+            "responseType": "html",
+            "data": null,
+            "selectors": ["tr:nth-child(2) #tab0_address", "tr:nth-child(3) #tab0_address"],
+            "excludeFields": null
+        },
+        "whois": {
+            "url": "https://proxy.cnfaq.cn?user_ua=1&referer=https://ip.cn/whois.html&url=https://ip.cn/api/domain/whois",
+            "postParams": "domain=$ip",
+            "responseType": "json",
+            "data": "data",
+            "selectors": null,
+            "excludeFields": null
+        },
+        "dns": null,
+        "trace": {
+            "url": "https://proxy.cnfaq.cn?user_ua=1&referer=https://ip.cn/beian.html&url=https://ip.cn/beian/$ip.html",
+            "postParams": null,
+            "responseType": "html",
+            "data": null,
+            "selectors": ["#output"],
+            "excludeFields": null
+        }
+    },
+    {
+        "id": "ipchecking",
+        "name": "ipcheck.ing",
+        "ipv4": true,
+        "ipv6": true,
+        "domain": true,
+        "info": {
+            "url": "https://proxy.cnfaq.cn/?referer=https://ipcheck.ing/&url=https%3A%2F%2Fipcheck.ing%2Fapi%2Fipchecking%3Fip%3D$ip%26lang%3Dzh-CN",
+            "postParams": null,
+            "responseType": "json",
+            "data": null,
+            "selectors": null,
+            "excludeFields": null
+        },
+        "whois": {
+            "url": "https://proxy.cnfaq.cn/?referer=https://ipcheck.ing/&url=https://ipcheck.ing/api/whois?q=$ip",
+            "postParams": null,
+            "responseType": "json",
+            "data": null,
+            "selectors": null,
+            "excludeFields": null
+        },
+        "dns": {
+            "url": "https://proxy.cnfaq.cn/?referer=https://ipcheck.ing/&url=https%3A%2F%2Fipcheck.ing%2Fapi%2Fdnsresolver%3Fhostname%3D$ip%26type%3DA%23%2F",
+            "postParams": null,
+            "responseType": "json",
+            "data": "result_dns",
+            "selectors": null,
+            "excludeFields": ["result", "code", "message"]
+        },
+        "trace": null
+    },
+    {
+        "id": "ipwV4",
+        "name": "ipw.cn-IPv4",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "info": {
+            "url": "https://proxy.cnfaq.cn/?referer=https://ipw.cn/&url=https%3A%2F%2Frest.ipw.cn%2Fapi%2Faw%2Fv1%2Fipv4%3Fip%3D$ip%26coordsys%3Dbd09%26warning%3Dplease-direct-use-please-use-ipplus360.com",
+            "postParams": null,
+            "responseType": "json",
+            "data": "data",
+            "selectors": null,
+            "excludeFields": ["code", "charge", "msg", "source"]
+        },
+        "whois": {
+            "url": "https://proxy.cnfaq.cn/?url=https://hopedomain.com/api/whois/batch",
+            "postParams": {"domains":["$ip"]},
+            "responseType": "json",
+            "data": "results.0.result",
+            "selectors": null,
+            "excludeFields": ["results", "total", "success", "failed", "duration", "message", "status"]
+        },
+        "dns": {
+            "url": "https://proxy.cnfaq.cn/?url=https://ipw.cn/api/dns/$ip/A/all",
+            "postParams": null,
+            "responseType": "json",
+            "data": "Detail",
+            "selectors": null,
+            "excludeFields": ["result", "code", "message"]
+        },
+        "trace": null
+    },
+    {
+        "id": "ipwV6",
+        "name": "ipw.cn-IPv6",
+        "ipv4": false,
+        "ipv6": true,
+        "domain": true,
+        "info": {
+            "url": "https://proxy.cnfaq.cn/?referer=https://ipw.cn/&url=https%3A%2F%2Frest.ipw.cn%2Fapi%2Faw%2Fv1%2Fipv6%3Fip%3D$ip%26coordsys%3Dbd09%26warning%3Dplease-direct-use-please-use-ipplus360.com",
+            "postParams": null,
+            "responseType": "json",
+            "data": "data",
+            "selectors": null,
+            "excludeFields": ["code", "charge", "msg", "source"]
+        },
+        "whois": {
+            "url": "https://proxy.cnfaq.cn/?url=https://hopedomain.com/api/whois/batch",
+            "postParams": {"domains":["$ip"]},
+            "responseType": "json",
+            "data": "results.0.result",
+            "selectors": null,
+            "excludeFields": ["results", "total", "success", "failed", "duration", "message", "status"]
+        },
+        "dns": {
+            "url": "https://proxy.cnfaq.cn/?url=https://ipw.cn/api/dns/$ip/AAAA/all",
+            "postParams": null,
+            "responseType": "json",
+            "data": "Detail",
+            "selectors": null,
+            "excludeFields": ["result", "code", "message"]
+        },
+        "trace": null
+    },
+    {
+        "id": "aizhan",
+        "name": "aizhan",
+        "ipv4": true,
+        "ipv6": false,
+        "domain": true,
+        "info": null,
+        "whois": {
+            "url": "https://proxy.cnfaq.cn/?user_ua=1&referer=https://whois.aizhan.com/&url=https://whois.aizhan.com/$ip/",
+            "postParams": null,
+            "responseType": "html",
+            "data": null,
+            "selectors": ["table.table"],
+            "excludeFields": null
+        },
+        "dns": {
+            "url": "https://proxy.cnfaq.cn/?user_ua=1&referer=https://dns.aizhan.com/&url=https://dns.aizhan.com/$ip/",
+            "postParams": null,
+            "responseType": "html",
+            "data": null,
+            "selectors": ["tbody tr td.domain", "tbody tr td.title"],
+            "excludeFields": null
+        },
+        "trace": {
+            "url": "https://proxy.cnfaq.cn/?user_ua=1&referer=https://icp.aizhan.com/&url=https://icp.aizhan.com/$ip/",
+            "postParams": null,
+            "responseType": "html",
+            "data": null,
+            "selectors": ["#icp-table", "#log", "#icp-company"],
+            "excludeFields": null
+        }
+    },
+    {
+        "id": "ipapi",
+        "name": "ipapi.co",
+        "ipv4": true,
+        "ipv6": true,
+        "domain": false,
+        "info": {
+            "url": "https://ipapi.co/$ip/json/",
+            "postParams": null,
+            "responseType": "json",
+            "data": null,
+            "selectors": null,
+            "excludeFields": null
+        },
+        "whois": null,
+        "dns": null,
+        "trace": null
+    }
+]

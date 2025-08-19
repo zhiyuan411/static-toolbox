@@ -30,7 +30,7 @@
         "excludeFields": ["ip"]
     },
     {
-        "id": "cloudflare",
+        "id": "cloudflarecom",
         "name": "cloudflare.com",
         "url": "https://speed.cloudflare.com/meta",
         "responseType": "json",
@@ -40,7 +40,7 @@
         "excludeFields": ["clientIp", "hostname"]
     },
     {
-        "id": "ipinfo",
+        "id": "ipinfoio",
         "name": "ipinfo.io",
         "url": "https://ipinfo.io/json",
         "responseType": "json",
@@ -50,7 +50,7 @@
         "excludeFields": ["ip", "readme"]
     },
     {
-        "id": "ipip",
+        "id": "ipipnet",
         "name": "ipip.net",
         "url": "https://myip.ipip.net/json",
         "responseType": "json",
@@ -60,8 +60,8 @@
         "excludeFields": ["ip"]
     },
     {
-        "id": "ipifyV4",
-        "name": "ipify-IPv4",
+        "id": "ipifyorgV4",
+        "name": "ipify.org-IPv4",
         "url": "https://api.ipify.org?format=json",
         "responseType": "json",
         "data": null,
@@ -70,8 +70,8 @@
         "excludeFields": ["ip"]
     },
     {
-        "id": "ipifyV6",
-        "name": "ipify-IPv6",
+        "id": "ipifyorgV6",
+        "name": "ipify.org-IPv6",
         "url": "https://api64.ipify.org?format=json",
         "responseType": "json",
         "data": null,
@@ -80,7 +80,7 @@
         "excludeFields": ["ip"]
     },
     {
-        "id": "ipapi",
+        "id": "ipapico",
         "name": "ipapi.co",
         "url": "https://ipapi.co/json",
         "responseType": "json",
@@ -90,7 +90,7 @@
         "excludeFields": ["ip"]
     },
     {
-        "id": "icanhazip",
+        "id": "icanhazipcom",
         "name": "icanhazip.com",
         "url": "https://icanhazip.com",
         "responseType": "text",

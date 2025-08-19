@@ -1,6 +1,6 @@
 [
     {
-        "id": "sirV4",
+        "id": "sirnetV4",
         "name": "sir.net-IPv4",
         "ipv4": true,
         "ipv6": false,
@@ -8,7 +8,7 @@
         "url": "https://sir.net/$ip"
     },
     {
-        "id": "sirV6",
+        "id": "sirnetV6",
         "name": "sir.net-IPv6",
         "ipv4": false,
         "ipv6": true,
@@ -40,15 +40,15 @@
         "url": "https://ping.pro/$ip"
     },
     {
-        "id": "chinaz",
-        "name": "chinaz",
+        "id": "pingcn",
+        "name": "ping.cn",
         "ipv4": true,
         "ipv6": false,
         "domain": true,
-        "url": "https://www.itdog.cn/ping_ipv6/$ip"
+        "url": "https://ping.chinaz.com/$ip"
     },
     {
-        "id": "itdog",
+        "id": "itdogcn",
         "name": "itdog.cn",
         "ipv4": false,
         "ipv6": true,
@@ -56,7 +56,7 @@
         "url": "https://www.itdog.cn/ping_ipv6/$ip"
     },
     {
-        "id": "ipw",
+        "id": "ipwcn",
         "name": "ipw.cn",
         "ipv4": false,
         "ipv6": true,
