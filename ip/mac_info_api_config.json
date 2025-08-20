@@ -1,0 +1,32 @@
+[
+    {
+        "id": "toolwacom",
+        "name": "toolwa.com",
+        "url": "https://proxy.cnfaq.cn/?url=https://toolwa.com/api/v1/",
+        "postParams": "action=mac&mac=$mac&format=json",
+        "responseType": "json",
+        "data": "data",
+        "selectors": null,
+        "excludeFields": ["code", "msg"]
+    },
+    {
+        "id": "ipchecking",
+        "name": "ipcheck.ing",
+        "url": "https://proxy.cnfaq.cn/?referer=https://ipcheck.ing/&url=https://ipcheck.ing/api/macchecker?mac=$mac",
+        "postParams": null,
+        "responseType": "json",
+        "data": null,
+        "selectors": null,
+        "excludeFields": ["success", "found"]
+    },
+    {
+        "id": "macvendorlookupcom",
+        "name": "macvendorlookup.com",
+        "url": "https://proxy.cnfaq.cn/?url=https://www.macvendorlookup.com/api/v2/44:23:7C:73:E9:F9",
+        "postParams": null,
+        "responseType": "json",
+        "data": "0",
+        "selectors": null,
+        "excludeFields": null
+    }
+]
