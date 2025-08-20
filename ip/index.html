@@ -122,7 +122,7 @@
                     <i class="fa fa-server text-primary mr-2"></i>
                     您的IP地址
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <!-- IPv4地址 -->
                     <div class="border border-gray-100 rounded-lg p-5 bg-gray-50">
                         <div class="flex items-center mb-3">
@@ -162,29 +162,29 @@
                         <div class="text-xs text-gray-500 mt-2">来源: 本站-IPv6</div>
                     </div>
                 </div>
-            </div>
 
+                <!-- 显示所有数据源的按钮 -->
+                <div class="text-center border-t border-gray-100 pt-4">
+                    <button id="toggleAllSources" onclick="toggleAllSourcesHandler()" class="bg-primary text-white px-6 py-2 rounded-lg btn-hover inline-flex items-center">
+                        <i class="fa fa-list-alt mr-2"></i>
+                        <span>显示所有数据源</span>
+                    </button>
+                </div>
 
-            <!-- 显示所有数据源的按钮 -->
-            <div class="text-center">
-                <button id="toggleAllSources" onclick="toggleAllSourcesHandler()" class="bg-primary text-white px-6 py-2 rounded-lg btn-hover inline-flex items-center">
-                    <i class="fa fa-list-alt mr-2"></i>
-                    <span>显示所有数据源</span>
-                </button>
-            </div>
-
-            <!-- 数据源展示容器，默认隐藏 -->
-            <div id="sourcesContainer" class="space-y-6 hidden">
-                <!-- 数据源内容将在这里动态生成 -->
-                <div class="text-center py-12 text-neutral">
-                    <div class="relative">
-                        <div class="progress-bar w-full rounded-full"></div>
-                        <div class="mt-6">
-                            <i class="fa fa-circle-o-notch fa-spin text-neutral text-2xl mb-4"></i>
-                            <p class="text-neutral">正在加载所有数据源，请稍候...</p>
+                <!-- 数据源展示容器，默认隐藏 -->
+                <div id="sourcesContainer" class="space-y-6 hidden">
+                    <!-- 数据源内容将在这里动态生成 -->
+                    <div class="text-center py-12 text-neutral">
+                        <div class="relative">
+                            <div class="progress-bar w-full rounded-full"></div>
+                            <div class="mt-6">
+                                <i class="fa fa-circle-o-notch fa-spin text-neutral text-2xl mb-4"></i>
+                                <p class="text-neutral">正在加载所有数据源，请稍候...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
@@ -193,7 +193,7 @@
         <div class="mb-8 space-y-6">
             <div class="bg-white rounded-xl p-6 card-shadow fade-in">
                 <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-                    <i class="fa fa-ping text-primary mr-2"></i>
+                    <i class="fa fa-globe text-primary mr-2"></i>
                     Ping检测功能
                 </h2>
 
@@ -493,12 +493,167 @@
         </div>
 
 
+        <!-- 隐私环境摘要区域 -->
+        <div class="mb-8 space-y-6">
+            <div class="bg-white rounded-xl p-6 card-shadow fade-in">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <i class="fa fa-shield text-primary mr-2"></i>
+                    隐私环境摘要
+                </h2>
+
+                <!-- 信息来源说明 -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">信息来源说明：</h4>
+                    <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                        <div class="flex items-center">
+                            <span class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-2" title="UA解析"></span>
+                            <span>UA解析</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-3 h-3 rounded-full bg-green-500 mr-2" title="JS API"></span>
+                            <span>JS API</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-3 h-3 rounded-full bg-purple-500 mr-2" title="计算分析"></span>
+                            <span>计算分析</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-3 h-3 rounded-full bg-orange-500 mr-2" title="需授权"></span>
+                            <span>需授权</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-3 h-3 rounded-full bg-gray-400 mr-2" title="实验性"></span>
+                            <span>实验性</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 加载状态 -->
+                <div id="privacyLoading" class="text-center py-12 text-neutral">
+                    <i class="fa fa-circle-o-notch fa-spin text-neutral text-2xl mb-4"></i>
+                    <p class="text-neutral">正在加载环境信息，请稍候...</p>
+                </div>
+
+                <!-- 错误状态 -->
+                <div id="privacyError" class="text-center py-12 text-neutral hidden">
+                    <i class="fa fa-exclamation-circle text-danger text-2xl mb-4"></i>
+                    <p id="privacyErrorMessage" class="text-danger">无法获取环境信息，请稍后重试</p>
+                </div>
+
+                <!-- 结果内容 -->
+                <div id="privacyContent" class="hidden">
+                    <!-- 信息分类展示 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <!-- 系统信息 -->
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-desktop text-primary mr-2"></i>
+                                系统信息
+                            </h3>
+                            <div id="systemInfo" class="space-y-3">
+                                <!-- 系统信息将通过JS动态生成 -->
+                            </div>
+                        </div>
+
+                        <!-- 浏览器信息 -->
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-internet-explorer text-primary mr-2"></i>
+                                浏览器信息
+                            </h3>
+                            <div id="browserInfo" class="space-y-3">
+                                <!-- 浏览器信息将通过JS动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <!-- 设备信息 -->
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-mobile text-primary mr-2"></i>
+                                设备信息
+                            </h3>
+                            <div id="deviceInfo" class="space-y-3">
+                                <!-- 设备信息将通过JS动态生成 -->
+                            </div>
+                        </div>
+
+                        <!-- 网络信息 -->
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-wifi text-primary mr-2"></i>
+                                网络信息
+                            </h3>
+                            <div id="networkInfo" class="space-y-3">
+                                <!-- 网络信息将通过JS动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 媒体与硬件信息 和 位置信息 并排显示 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <!-- 媒体与硬件信息 -->
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-microchip text-primary mr-2"></i>
+                                媒体与硬件信息
+                            </h3>
+                            <div id="hardwareInfo" class="space-y-3">
+                                <!-- 媒体与硬件信息将通过JS动态生成 -->
+                            </div>
+                        </div>
+
+                        <!-- 位置信息 -->
+                        <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-800 mb-4 flex items-center">
+                                <i class="fa fa-map-marker text-primary mr-2"></i>
+                                位置信息
+                            </h3>
+                            <div id="locationInfo" class="space-y-3">
+                                <div class="flex items-center">
+                                    <button id="getLocationBtn" onclick="getGeolocation()" 
+                                            class="bg-primary text-white px-4 py-2 rounded-lg btn-hover inline-flex items-center">
+                                        <i class="fa fa-location-arrow mr-2"></i>
+                                        获取位置信息（需授权）
+                                    </button>
+                                    <div id="locationStatus" class="ml-4 text-gray-500 text-sm"></div>
+                                </div>
+                                <div id="locationDetails" class="hidden mt-3 pl-2 border-l-2 border-gray-200">
+                                    <!-- 位置信息将通过JS动态生成 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 原始头信息（可折叠） -->
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium text-gray-800 flex items-center">
+                                <i class="fa fa-code text-primary mr-2"></i>
+                                请求头信息
+                            </h3>
+                            <button id="toggleHeadersBtn" onclick="toggleRawHeaders()" 
+                                    class="text-primary text-sm font-medium flex items-center btn-hover">
+                                <span id="toggleHeadersText">显示详情</span>
+                                <i id="toggleHeadersIcon" class="fa fa-chevron-down ml-1 text-xs"></i>
+                            </button>
+                        </div>
+                        <div id="rawHeadersContainer" class="hidden mt-4 p-4 bg-white rounded-lg border border-gray-200 text-sm overflow-x-auto">
+                            <pre id="rawHeadersContent" class="font-mono whitespace-pre-wrap"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
         <!-- 官方平台链接区域 -->
         <div class="mb-8 space-y-6">
             <div class="bg-white rounded-xl p-6 card-shadow fade-in">
                 <h2 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
                     <i class="fa fa-link text-primary mr-2"></i>
-                    官方查询工具
+                    官方平台链接
                 </h2>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -509,7 +664,7 @@
                             <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary mr-3 group-hover:bg-primary group-hover:text-white transition-all duration-300">
                                 <i class="fa fa-shield"></i>
                             </div>
-                            <h3 class="font-medium text-gray-800">工信部ICP备案查询</h3>
+                            <h3 class="font-medium text-gray-800">工信部ICP备案</h3>
                         </div>
                         <p class="text-sm text-gray-500 flex-1">查询网站备案信息、备案主体及接入服务商</p>
                     </a>
@@ -521,7 +676,7 @@
                             <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-3 group-hover:bg-green-600 group-hover:text-white transition-all duration-300">
                                 <i class="fa fa-search"></i>
                             </div>
-                            <h3 class="font-medium text-gray-800">CNNIC查询工具</h3>
+                            <h3 class="font-medium text-gray-800">CNNIC</h3>
                         </div>
                         <p class="text-sm text-gray-500 flex-1">查询国内域名注册信息、WHOIS信息及DNS解析</p>
                     </a>
@@ -533,7 +688,7 @@
                             <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 mr-3 group-hover:bg-purple-600 group-hover:text-white transition-all duration-300">
                                 <i class="fa fa-search"></i>
                             </div>
-                            <h3 class="font-medium text-gray-800">ICANN查询工具</h3>
+                            <h3 class="font-medium text-gray-800">ICANN</h3>
                         </div>
                         <p class="text-sm text-gray-500 flex-1">查询全球域名注册信息、WHOIS数据及域名状态</p>
                     </a>
@@ -545,7 +700,7 @@
                             <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mr-3 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300">
                                 <i class="fa fa-search"></i>
                             </div>
-                            <h3 class="font-medium text-gray-800">ARIN IP查询</h3>
+                            <h3 class="font-medium text-gray-800">ARIN</h3>
                         </div>
                         <p class="text-sm text-gray-500 flex-1">查询IP地址归属、网络所有者及注册信息</p>
                     </a>
@@ -590,6 +745,9 @@
 
             // 加载MAC地址信息查询API配置
             loadMacInfoApiConfig();
+
+            // 加载隐私环境信息
+            loadPrivacyEnvironmentInfo();
 
             // 为Ping检测输入框添加回车事件
             const pingInput = document.getElementById('pingTarget');
@@ -721,6 +879,7 @@
                     showNotification('MAC信息查询功能初始化失败', false);
                 });
         }
+
 
         // =============================
         // 我的IP 业务逻辑处理
@@ -1630,6 +1789,806 @@
 
 
         // =============================
+        // 隐私环境摘要 业务逻辑处理
+        // =============================
+
+
+        // 信息来源类型
+        const INFO_SOURCE = {
+            UA_PARSE: 'ua-parse',      // 蓝色
+            JS_API: 'js-api',          // 绿色
+            CALCULATED: 'calculated',  // 紫色
+            AUTHORIZATION: 'auth',     // 橙色
+            EXPERIMENTAL: 'experimental' // 灰色
+        };
+
+        // 加载隐私环境信息
+        function loadPrivacyEnvironmentInfo() {
+            fetch('https://cnfaq.cn/py/request-headers.do')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 隐藏加载状态，显示内容
+                    document.getElementById('privacyLoading').classList.add('hidden');
+                    document.getElementById('privacyContent').classList.remove('hidden');
+                    
+                    // 处理并显示解析后的信息
+                    displayParsedInfo(data.parsed_info);
+                    
+                    // 存储原始头信息
+                    document.getElementById('rawHeadersContent').textContent = JSON.stringify(data.raw_headers, null, 2);
+                    
+                    // 补充详细信息
+                    addBrowserDetails();
+                    addSystemDetails();
+                    addDeviceDetails();
+                    addNetworkDetails();
+                    addHardwareDetails();
+                    
+                    // 加载需要异步获取的信息
+                    loadAsyncInformation();
+                })
+                .catch(err => {
+                    console.error('获取隐私环境信息失败:', err);
+                    // 显示错误状态
+                    document.getElementById('privacyLoading').classList.add('hidden');
+                    document.getElementById('privacyError').classList.remove('hidden');
+                    document.getElementById('privacyErrorMessage').textContent = '无法获取环境信息，请稍后重试';
+                });
+        }
+
+        // 显示解析后的信息
+        function displayParsedInfo(parsedInfo) {
+            const systemInfoContainer = document.getElementById('systemInfo');
+            const browserInfoContainer = document.getElementById('browserInfo');
+            const deviceInfoContainer = document.getElementById('deviceInfo');
+            
+            // 系统信息 (UA解析)
+            addInfoItem(systemInfoContainer, '操作系统', parsedInfo['操作系统'] || '未知', INFO_SOURCE.UA_PARSE);
+            addInfoItem(systemInfoContainer, '操作系统版本', parsedInfo['操作系统版本'] || '未知', INFO_SOURCE.UA_PARSE);
+
+            // 浏览器信息 (UA解析)
+            addInfoItem(browserInfoContainer, '浏览器', parsedInfo['浏览器'] || '未知', INFO_SOURCE.UA_PARSE);
+            addInfoItem(browserInfoContainer, '浏览器版本', parsedInfo['浏览器版本'] || '未知', INFO_SOURCE.UA_PARSE);
+
+            // 设备信息 (UA解析)
+            addInfoItem(deviceInfoContainer, '设备类型', parsedInfo['设备'] || '未知', INFO_SOURCE.UA_PARSE);
+            addInfoItem(deviceInfoContainer, '是否移动设备', parsedInfo['是否移动设备'] ? '是' : '否', INFO_SOURCE.UA_PARSE);
+            addInfoItem(deviceInfoContainer, '是否平板设备', parsedInfo['是否平板设备'] ? '是' : '否', INFO_SOURCE.UA_PARSE);
+            addInfoItem(deviceInfoContainer, '是否桌面设备', parsedInfo['是否桌面设备'] ? '是' : '否', INFO_SOURCE.UA_PARSE);
+            addInfoItem(deviceInfoContainer, '是否爬虫', parsedInfo['是否爬虫'] ? '是' : '否', INFO_SOURCE.UA_PARSE);
+        }
+
+        // 添加浏览器详细信息
+        function addBrowserDetails() {
+            const browserInfoContainer = document.getElementById('browserInfo');
+            
+            // 浏览器语言 (JS API)
+            let language = '未知';
+            try {
+                language = navigator.language || navigator.userLanguage || '未知';
+            } catch (e) {
+                console.log('获取浏览器语言失败:', e);
+            }
+            addInfoItem(browserInfoContainer, '浏览器语言', language, INFO_SOURCE.JS_API);
+            
+            // 时区 (JS API)
+            try {
+                const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                addInfoItem(browserInfoContainer, '时区', timeZone || '未知', INFO_SOURCE.JS_API);
+            } catch (e) {
+                addInfoItem(browserInfoContainer, '时区', '未知', INFO_SOURCE.JS_API);
+            }
+            
+            // 是否启用Cookie (JS API)
+            let cookieEnabled = '未知';
+            try {
+                cookieEnabled = navigator.cookieEnabled ? '是' : '否';
+            } catch (e) {
+                console.log('获取Cookie状态失败:', e);
+            }
+            addInfoItem(browserInfoContainer, '是否启用Cookie', cookieEnabled, INFO_SOURCE.JS_API);
+            
+            // DNT（不跟踪）状态 (JS API)
+            let doNotTrack = '未知';
+            try {
+                doNotTrack = navigator.doNotTrack || navigator.msDoNotTrack;
+                doNotTrack = (doNotTrack === '1' || doNotTrack === 'yes') ? '启用' : 
+                            (doNotTrack === '0' || doNotTrack === 'no') ? '禁用' : '未知';
+            } catch (e) {
+                console.log('获取DNT状态失败:', e);
+            }
+            addInfoItem(browserInfoContainer, 'DNT（不跟踪）状态', doNotTrack, INFO_SOURCE.JS_API);
+            
+            // Service Workers注册状态 (JS API)
+            addAsyncInfoItem(browserInfoContainer, 'Service Workers', '获取中...', INFO_SOURCE.JS_API, async () => {
+                try {
+                    if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        if (registrations.length > 0) {
+                            // 详情打印在控制台
+                            console.log("Service Worker 注册列表:", registrations);
+                            return `已注册 (${registrations.length}个)`;
+                        } else {
+                            return '未注册';
+                        }
+                    } else {
+                        return '不支持';
+                    }
+                } catch (e) {
+                    return '获取失败';
+                }
+            });
+        }
+
+        // 添加系统详细信息
+        function addSystemDetails() {
+            const systemInfoContainer = document.getElementById('systemInfo');
+            
+            // 暗色模式偏好 (JS API)
+            let darkMode = '未知';
+            try {
+                darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? '偏好暗色' : '偏好亮色';
+            } catch (e) {
+                console.log('获取暗色模式偏好失败:', e);
+            }
+            addInfoItem(systemInfoContainer, '暗色模式偏好', darkMode, INFO_SOURCE.JS_API);
+            
+            // 电池状态 (实验性，已淘汰)
+            addAsyncInfoItem(systemInfoContainer, '电池状态', '获取中...', INFO_SOURCE.EXPERIMENTAL, async () => {
+                try {
+                    if (!navigator.getBattery) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const battery = await navigator.getBattery();
+                    const level = Math.round(battery.level * 100);
+                    const status = battery.charging ? '充电中' : '放电中';
+                    console.log("电池信息：", battery);
+                    return `${level}% (${status})`;
+                } catch (e) {
+                    return '获取失败';
+                }
+            });
+            
+            // 充电时间 (实验性，已淘汰)
+            addAsyncInfoItem(systemInfoContainer, '充满时间', '获取中...', INFO_SOURCE.EXPERIMENTAL, async () => {
+                try {
+                    if (!navigator.getBattery) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const battery = await navigator.getBattery();
+                    
+                    // 格式化充电时间
+                    const formattedTime = formatSecondsToTime(battery.chargingTime);
+                    
+                    return `${formattedTime}`;
+                } catch (e) {
+                    console.error("获取充电时间失败:", e);
+                    return '获取失败';
+                }
+            });
+
+            // 放电时间 (实验性，已淘汰)
+            addAsyncInfoItem(systemInfoContainer, '耗尽时间', '获取中...', INFO_SOURCE.EXPERIMENTAL, async () => {
+                try {
+                    if (!navigator.getBattery) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const battery = await navigator.getBattery();
+                    
+                    // 格式化放电时间
+                    const formattedTime = formatSecondsToTime(battery.dischargingTime);
+                    
+                    return `${formattedTime}`;
+                } catch (e) {
+                    console.error("获取放电时间失败:", e);
+                    return '获取失败';
+                }
+            });
+            
+            // 时区+语言+分辨率组合标识 (计算分析)
+            try {
+                const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+                const language = navigator.language || 'unknown';
+                const resolution = `${screen.width}x${screen.height}`;
+                const combined = `${timeZone}|${language}|${resolution}`;
+                // 简单哈希计算
+                const hash = simpleHash(combined);
+                addInfoItem(systemInfoContainer, '组合标识哈希', hash, INFO_SOURCE.CALCULATED);
+            } catch (e) {
+                console.log('计算组合标识失败:', e);
+                addInfoItem(systemInfoContainer, '组合标识哈希', '计算失败', INFO_SOURCE.CALCULATED);
+            }
+        }
+
+        // 添加设备详细信息
+        function addDeviceDetails() {
+            const deviceInfoContainer = document.getElementById('deviceInfo');
+            
+            // CPU核心数 (JS API)
+            let cpuCores = '未知';
+            try {
+                cpuCores = navigator.hardwareConcurrency ? navigator.hardwareConcurrency + ' 核心' : '未知';
+            } catch (e) {
+                console.log('获取CPU核心数失败:', e);
+            }
+            addInfoItem(deviceInfoContainer, 'CPU核心数', cpuCores, INFO_SOURCE.JS_API);
+            
+            // 内存容量 (JS API)
+            let memory = '未知';
+            try {
+                memory = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '未知';
+            } catch (e) {
+                console.log('获取内存容量失败:', e);
+            }
+            addInfoItem(deviceInfoContainer, '内存容量', memory, INFO_SOURCE.JS_API);
+            
+            // 像素密度 (JS API)
+            let pixelDensity = '未知';
+            try {
+                pixelDensity = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) + ' 像素/设备独立像素' : '未知';
+            } catch (e) {
+                console.log('获取像素密度失败:', e);
+            }
+            addInfoItem(deviceInfoContainer, '像素密度', pixelDensity, INFO_SOURCE.JS_API);
+            
+            // 屏幕分辨率 (JS API)
+            let resolution = '未知';
+            try {
+                resolution = `${screen.width} x ${screen.height}`;
+            } catch (e) {
+                console.log('获取屏幕分辨率失败:', e);
+            }
+            addInfoItem(deviceInfoContainer, '屏幕分辨率', resolution, INFO_SOURCE.JS_API);
+            
+            // 色域支持 (JS API)
+            let colorDepth = '未知';
+            try {
+                colorDepth = `${screen.colorDepth} 位`;
+            } catch (e) {
+                console.log('获取颜色深度失败:', e);
+            }
+            addInfoItem(deviceInfoContainer, '色域支持', colorDepth, INFO_SOURCE.JS_API);
+        }
+
+        // 添加网络信息
+        function addNetworkDetails() {
+            const networkInfoContainer = document.getElementById('networkInfo');
+            
+            // 网络类型 (计算分析)
+            let networkType = '未知';
+            try {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                console.log("网络类型：", connection);
+                networkType = connection ? connection.effectiveType || '未知' : '不支持';
+            } catch (e) {
+                console.log('获取网络类型失败:', e);
+            }
+            addInfoItem(networkInfoContainer, '网络类型', networkType, INFO_SOURCE.CALCULATED);
+            
+            // 下行速度 (JS API)
+            let downlink = '未知';
+            try {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                downlink = connection && connection.downlink ? connection.downlink + ' Mbps' : '不支持';
+            } catch (e) {
+                console.log('获取下行速度失败:', e);
+            }
+            addInfoItem(networkInfoContainer, '下行速度', downlink, INFO_SOURCE.JS_API);
+            
+            // RTT延迟 (JS API)
+            let rtt = '未知';
+            try {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                rtt = connection && connection.rtt ? connection.rtt + ' ms' : '不支持';
+            } catch (e) {
+                console.log('获取RTT延迟失败:', e);
+            }
+            addInfoItem(networkInfoContainer, 'RTT延迟', rtt, INFO_SOURCE.JS_API);
+
+            // 节省流量模式 (JS API)
+            let saveData = '未知';
+            try {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                saveData = connection && typeof connection.saveData === 'boolean' ? (connection.saveData ? '已启用' : '未启用') : '不支持';
+            } catch (e) {
+                console.log('获取节省流量模式失败:', e);
+            }
+            addInfoItem(networkInfoContainer, '节省流量模式', saveData, INFO_SOURCE.JS_API);
+        }
+
+        // 添加硬件与媒体信息
+        function addHardwareDetails() {
+            const hardwareInfoContainer = document.getElementById('hardwareInfo');
+            
+            // WebGL支持 (JS API)
+            let webglSupport = '未知';
+            try {
+                webglSupport = !!document.createElement('canvas').getContext('webgl') ? '支持' : '不支持';
+            } catch (e) {
+                console.log('检测WebGL支持失败:', e);
+                webglSupport = '检测失败';
+            }
+            addInfoItem(hardwareInfoContainer, 'WebGL支持', webglSupport, INFO_SOURCE.JS_API);
+            
+            // WebGL渲染指纹 (计算分析)
+            addAsyncInfoItem(hardwareInfoContainer, 'WebGL渲染指纹', '获取中...', INFO_SOURCE.CALCULATED, async () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    
+                    if (!gl) return '不支持WebGL';
+                    
+                    // 1. 收集基础特征
+                    const features = {
+                        vendor: gl.getParameter(gl.VENDOR),
+                        renderer: gl.getParameter(gl.RENDERER),
+                        maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                        shadingLanguage: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+                        extensions: gl.getSupportedExtensions()
+                    };
+                    
+                    // 2. 获取像素数据（简化版）
+                    const pixelData = await getSimplifiedPixelData(gl);
+                    
+                    // 3. 组合特征数据
+                    const dataString = JSON.stringify(features) + pixelData;
+                    
+                    // 4. 使用简单哈希函数生成指纹
+                    const hash = simpleHash(dataString);
+                    
+                    return hash;
+                } catch (e) {
+                    console.error("WebGL指纹生成失败:", e);
+                    return '计算失败';
+                }
+            });
+
+            // 简化的像素数据获取函数
+            function getSimplifiedPixelData(gl) {
+                return new Promise((resolve) => {
+                    try {
+                        // 创建小尺寸Canvas (16x16)
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 16;
+                        canvas.height = 16;
+                        const smallGl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                        
+                        if (!smallGl) {
+                            resolve(''); // 无法获取像素数据
+                            return;
+                        }
+                        
+                        // 创建帧缓冲区
+                        const framebuffer = smallGl.createFramebuffer();
+                        smallGl.bindFramebuffer(smallGl.FRAMEBUFFER, framebuffer);
+                        
+                        // 创建纹理
+                        const texture = smallGl.createTexture();
+                        smallGl.bindTexture(smallGl.TEXTURE_2D, texture);
+                        smallGl.texImage2D(smallGl.TEXTURE_2D, 0, smallGl.RGBA, 16, 16, 0, 
+                                          smallGl.RGBA, smallGl.UNSIGNED_BYTE, null);
+                        smallGl.framebufferTexture2D(smallGl.FRAMEBUFFER, smallGl.COLOR_ATTACHMENT0, 
+                                                   smallGl.TEXTURE_2D, texture, 0);
+                        
+                        // 绘制简单图形
+                        const vertexShader = smallGl.createShader(smallGl.VERTEX_SHADER);
+                        smallGl.shaderSource(vertexShader, `
+                            attribute vec2 position;
+                            void main() {
+                                gl_Position = vec4(position, 0, 1);
+                            }
+                        `);
+                        smallGl.compileShader(vertexShader);
+                        
+                        const fragmentShader = smallGl.createShader(smallGl.FRAGMENT_SHADER);
+                        smallGl.shaderSource(fragmentShader, `
+                            precision mediump float;
+                            void main() {
+                                gl_FragColor = vec4(gl_FragCoord.x/16.0, gl_FragCoord.y/16.0, 0.5, 1.0);
+                            }
+                        `);
+                        smallGl.compileShader(fragmentShader);
+                        
+                        const program = smallGl.createProgram();
+                        smallGl.attachShader(program, vertexShader);
+                        smallGl.attachShader(program, fragmentShader);
+                        smallGl.linkProgram(program);
+                        smallGl.useProgram(program);
+                        
+                        // 设置顶点数据
+                        const buffer = smallGl.createBuffer();
+                        smallGl.bindBuffer(smallGl.ARRAY_BUFFER, buffer);
+                        smallGl.bufferData(smallGl.ARRAY_BUFFER, new Float32Array([
+                            -1, -1, 1, -1, -1, 1
+                        ]), smallGl.STATIC_DRAW);
+                        
+                        const positionLoc = smallGl.getAttribLocation(program, 'position');
+                        smallGl.enableVertexAttribArray(positionLoc);
+                        smallGl.vertexAttribPointer(positionLoc, 2, smallGl.FLOAT, false, 0, 0);
+                        
+                        // 绘制
+                        smallGl.drawArrays(smallGl.TRIANGLES, 0, 3);
+                        
+                        // 读取像素数据
+                        const pixels = new Uint8Array(16 * 16 * 4);
+                        smallGl.readPixels(0, 0, 16, 16, smallGl.RGBA, smallGl.UNSIGNED_BYTE, pixels);
+                        
+                        // 转换为简化的字符串表示
+                        let pixelString = '';
+                        for (let i = 0; i < pixels.length; i += 4) {
+                            // 只取RGB值，忽略Alpha
+                            pixelString += pixels[i].toString(16).padStart(2, '0');
+                            pixelString += pixels[i+1].toString(16).padStart(2, '0');
+                            pixelString += pixels[i+2].toString(16).padStart(2, '0');
+                        }
+                        
+                        resolve(pixelString);
+                    } catch (e) {
+                        console.error("简化像素数据获取失败:", e);
+                        resolve('');
+                    }
+                });
+            };
+            
+            // 媒体设备ID哈希值 (需授权)
+            addAsyncInfoItem(hardwareInfoContainer, '媒体设备ID哈希', '点击获取', INFO_SOURCE.AUTHORIZATION, async () => {
+                try {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    console.log("媒体设备：", devices);
+                    let deviceIds = [];
+                    
+                    devices.forEach(device => {
+                        if (device.deviceId && device.kind) {
+                            deviceIds.push(`${device.kind}:${device.deviceId}`);
+                        }
+                    });
+                    
+                    if (deviceIds.length === 0) {
+                        return '未检测到媒体设备ID';
+                    }
+                    
+                    return simpleHash(deviceIds.join('|'));
+                } catch (e) {
+                    return e.name === 'NotAllowedError' ? '需要用户授权' : '获取失败';
+                }
+            });
+            
+            // 麦克风信息 (需授权)
+            addAsyncInfoItem(hardwareInfoContainer, '麦克风', '点击获取', INFO_SOURCE.AUTHORIZATION, async () => {
+                try {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    let mics = [];
+                    
+                    devices.forEach(device => {
+                        if (device.kind === 'audioinput') {
+                            mics.push(device.label || '未知麦克风');
+                        }
+                    });
+                    
+                    return mics.length > 0 ? mics.join('; ') : '未检测到麦克风';
+                } catch (e) {
+                    return e.name === 'NotAllowedError' ? '需要用户授权' : '获取失败';
+                }
+            });
+            
+            // 摄像头信息 (需授权)
+            addAsyncInfoItem(hardwareInfoContainer, '摄像头', '点击获取', INFO_SOURCE.AUTHORIZATION, async () => {
+                try {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    let cameras = [];
+                    
+                    devices.forEach(device => {
+                        if (device.kind === 'videoinput') {
+                            cameras.push(device.label || '未知摄像头');
+                        }
+                    });
+                    
+                    return cameras.length > 0 ? cameras.join('; ') : '未检测到摄像头';
+                } catch (e) {
+                    return e.name === 'NotAllowedError' ? '需要用户授权' : '获取失败';
+                }
+            });
+            
+            // 蓝牙设备 (需授权)
+            addAsyncInfoItem(hardwareInfoContainer, '蓝牙设备', '点击获取', INFO_SOURCE.AUTHORIZATION, async () => {
+                try {
+                    if (!navigator.bluetooth) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true
+                    });
+                    console.log("蓝牙设备：", device);
+                    
+                    return `已找到: ${device.name || '未知设备'}`;
+                } catch (e) {
+                    return e.name === 'NotAllowedError' ? '需要用户授权' : 
+                           e.name === 'AbortError' ? '用户取消选择' : '获取失败';
+                }
+            });
+            
+            // 外设设备 (需授权)
+            addAsyncInfoItem(hardwareInfoContainer, 'HID外设设备', '点击获取', INFO_SOURCE.EXPERIMENTAL, async () => {
+                try {
+                    if (!navigator.hid) {
+                        return '浏览器不支持';
+                    }
+                    
+                    const devices = await navigator.hid.getDevices();
+                    console.log("外设设备：", devices);
+                    return devices.length > 0 ? 
+                        `已检测到 ${devices.length} 个设备` : 
+                        '未检测到HID设备';
+                } catch (e) {
+                    return e.name === 'NotAllowedError' ? '需要用户授权' : '获取失败';
+                }
+            });
+            
+            // 指纹/面部识别 (实验性)
+            addAsyncInfoItem(hardwareInfoContainer, '生物识别支持', '点击检测', INFO_SOURCE.EXPERIMENTAL, async () => {
+                try {
+                    if (!PublicKeyCredential) {
+                        return '浏览器不支持WebAuthn';
+                    }
+                    
+                    // 简单检测是否支持生物识别
+                    const isAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                    return isAvailable ? '支持生物识别' : '不支持生物识别';
+                } catch (e) {
+                    return '检测失败';
+                }
+            });
+        }
+
+        // 加载异步信息
+        function loadAsyncInformation() {
+            // 触发所有需要异步加载的信息
+            document.querySelectorAll('.async-info-trigger').forEach(trigger => {
+                trigger.addEventListener('click', async function() {
+                    const infoItem = this.closest('.info-item');
+                    const valueElement = infoItem.querySelector('.info-value');
+                    const originalText = valueElement.textContent;
+                    valueElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 加载中...';
+                    
+                    try {
+                        const getData = this.getDataFunction;
+                        const result = await getData();
+                        valueElement.textContent = result;
+                    } catch (e) {
+                        valueElement.textContent = '获取失败';
+                    }
+                });
+            });
+        }
+
+        // 添加信息项
+        function addInfoItem(container, label, value, sourceType, asyncFunction) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center info-item';
+            
+            // 根据信息来源设置不同颜色的标记
+            let markerColor = 'bg-gray-400'; // 默认灰色
+            switch(sourceType) {
+                case INFO_SOURCE.UA_PARSE:
+                    markerColor = 'bg-blue-500';
+                    break;
+                case INFO_SOURCE.JS_API:
+                    markerColor = 'bg-green-500';
+                    break;
+                case INFO_SOURCE.CALCULATED:
+                    markerColor = 'bg-purple-500';
+                    break;
+                case INFO_SOURCE.AUTHORIZATION:
+                    markerColor = 'bg-orange-500';
+                    break;
+                case INFO_SOURCE.EXPERIMENTAL:
+                    markerColor = 'bg-gray-400';
+                    break;
+            }
+            
+            // 如果是异步获取的信息，添加点击触发功能
+            let valueHtml = '';
+            if (asyncFunction) {
+                valueHtml = `
+                    <span class="text-sm text-gray-800 font-mono info-value">${value}</span>
+                    <button class="async-info-trigger ml-2 text-primary text-xs p-1" title="点击获取信息">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                `;
+            } else {
+                valueHtml = `<span class="text-sm text-gray-800 font-mono info-value">${value}</span>`;
+            }
+            
+            item.innerHTML = `
+                <span class="inline-block w-3 h-3 rounded-full ${markerColor} mr-2" title="${getSourceName(sourceType)}"></span>
+                <span class="text-sm font-medium text-gray-500 w-1/3">${label}：</span>
+                ${valueHtml}
+            `;
+            
+            // 如果有异步函数，绑定到按钮
+            if (asyncFunction) {
+                const trigger = item.querySelector('.async-info-trigger');
+                trigger.getDataFunction = asyncFunction;
+            }
+            
+            container.appendChild(item);
+        }
+
+        // 添加需要异步获取的信息项
+        function addAsyncInfoItem(container, label, initialText, sourceType, asyncFunction) {
+            addInfoItem(container, label, initialText, sourceType, asyncFunction);
+        }
+
+        // 获取信息来源名称
+        function getSourceName(sourceType) {
+            switch(sourceType) {
+                case INFO_SOURCE.UA_PARSE:
+                    return 'UA解析';
+                case INFO_SOURCE.JS_API:
+                    return 'JS API';
+                case INFO_SOURCE.CALCULATED:
+                    return '计算分析';
+                case INFO_SOURCE.AUTHORIZATION:
+                    return '需授权';
+                case INFO_SOURCE.EXPERIMENTAL:
+                    return '实验性';
+                default:
+                    return '未知来源';
+            }
+        }
+
+        // 切换原始头信息显示
+        function toggleRawHeaders() {
+            const container = document.getElementById('rawHeadersContainer');
+            const btnText = document.getElementById('toggleHeadersText');
+            const btnIcon = document.getElementById('toggleHeadersIcon');
+
+            const isHidden = container.classList.contains('hidden');
+
+            if (isHidden) {
+                container.classList.remove('hidden');
+                btnText.textContent = '隐藏详情';
+                btnIcon.className = 'fa fa-chevron-up ml-1 text-xs';
+            } else {
+                container.classList.add('hidden');
+                btnText.textContent = '显示详情';
+                btnIcon.className = 'fa fa-chevron-down ml-1 text-xs';
+            }
+        }
+
+        // 获取地理位置信息
+        function getGeolocation() {
+            const statusElement = document.getElementById('locationStatus');
+            const detailsElement = document.getElementById('locationDetails');
+            const button = document.getElementById('getLocationBtn');
+            
+            // 禁用按钮，显示加载状态
+            button.disabled = true;
+            statusElement.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 正在获取位置信息...';
+            detailsElement.classList.add('hidden');
+            detailsElement.innerHTML = '';
+            
+            if (!navigator.geolocation) {
+                statusElement.innerHTML = '<i class="fa fa-exclamation-circle text-danger"></i> 您的浏览器不支持地理位置服务';
+                button.disabled = false;
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    // 成功获取位置信息
+                    statusElement.innerHTML = '<i class="fa fa-check text-secondary"></i> 位置信息获取成功';
+                    button.disabled = false;
+                    
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    
+                    // 显示位置详情，包含地图选择下拉框
+                    detailsElement.innerHTML = `
+                        <div class="mb-2">
+                            <span class="text-sm font-medium text-gray-500">纬度：</span>
+                            <span class="text-sm text-gray-800 font-mono">${lat}</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-sm font-medium text-gray-500">经度：</span>
+                            <span class="text-sm text-gray-800 font-mono">${lng}</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="text-sm font-medium text-gray-500">精度：</span>
+                            <span class="text-sm text-gray-800 font-mono">约 ${Math.round(position.coords.accuracy)} 米</span>
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <span class="text-sm font-medium text-gray-500 mr-2">在地图上查看：</span>
+                            <select id="mapSelector" class="text-sm border rounded px-2 py-1 mr-2">
+                                <option value="amap">高德地图</option>
+                                <option value="baidu">百度地图</option>
+                                <option value="tencent">腾讯地图</option>
+                                <option value="google">Google Map</option>
+                            </select>
+                            <button onclick="openMap('${lat}', '${lng}')" 
+                                    class="text-primary text-sm inline-flex items-center btn-hover">
+                                <i class="fa fa-map mr-1"></i> 查看
+                            </button>
+                        </div>
+                    `;
+                    detailsElement.classList.remove('hidden');
+                },
+                (error) => {
+                    // 处理错误
+                    let errorMessage = '';
+                    switch(error.code) {
+                        case 1:
+                            errorMessage = '您拒绝了位置信息请求，请在浏览器设置中允许';
+                            break;
+                        case 2:
+                            errorMessage = '无法获取位置信息，请稍后重试';
+                            break;
+                        case 3:
+                            errorMessage = '获取位置信息超时';
+                            break;
+                        default:
+                            errorMessage = '发生未知错误';
+                    }
+                    
+                    statusElement.innerHTML = `<i class="fa fa-exclamation-circle text-danger"></i> ${errorMessage}`;
+                    button.disabled = false;
+                },
+                {
+                    maximumAge: 0, // 不使用缓存位置
+                    timeout: 15000, // 15秒超时
+                    enableHighAccuracy: false // 不要求高精度
+                }
+            );
+        }
+
+        // 打开选择的地图
+        function openMap(lat, lng) {
+            const mapType = document.getElementById('mapSelector').value;
+            let url = '';
+            
+            switch(mapType) {
+                case 'amap': // 高德地图
+                    url = `https://uri.amap.com/marker?position=${lng},${lat}&name=当前位置&coordinate=wgs84`;
+                    break;
+                case 'baidu': // 百度地图
+                    url = `https://api.map.baidu.com/marker?location=${lat},${lng}&title=当前位置&content=通过浏览器获取的位置&output=html&src=webapp.baidu.openAPIdemo`;
+                    break;
+                case 'tencent': // 腾讯地图
+                    url = `https://map.qq.com/?type=marker&isopeninfowin=1&markertype=1&pointx=${lng}&pointy=${lat}&name=当前位置`;
+                    break;
+                case 'google': // Google Map
+                    url = `https://maps.google.com/maps?q=${lat},${lng}`;
+                    break;
+            }
+            
+            if (url) {
+                window.open(url, '_blank', 'noopener noreferrer');
+            }
+        }
+
+
+        // =============================
         // 各业务通用 获取和处理数据等 核心底层函数
         // =============================
 
@@ -2243,6 +3202,38 @@
         // 通用工具函数
         // =============================
 
+
+        // 将秒数转换为 "x小时x分钟x秒" 格式
+        function formatSecondsToTime(seconds) {
+            // 处理特殊值
+            if (seconds === Infinity) return "未知";
+            if (seconds === 0) return "很快";
+            
+            // 计算各时间单位
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            // 构建结果字符串
+            const parts = [];
+            if (hours > 0) parts.push(`${hours}小时`);
+            if (minutes > 0) parts.push(`${minutes}分钟`);
+            if (secs > 0 || parts.length === 0) parts.push(`${secs}秒`);
+            
+            return parts.join("");
+        }
+
+        // 简单哈希函数
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // 转换为32位整数
+            }
+            // 转换为16进制字符串
+            return Math.abs(hash).toString(16).substring(0, 10);
+        }
 
         // 判断输入类型：仅返回类型标识符（ipv4/ipv6/domain）
         function determineInputType(input) {
