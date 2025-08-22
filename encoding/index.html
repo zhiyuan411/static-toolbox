@@ -241,6 +241,11 @@
                     textColor = 'text-white';
                     icon = 'fa-info-circle';
                     break;
+                case 'warning':
+                    bgColor = 'bg-warning';
+                    textColor = 'text-white';
+                    icon = 'fa-exclamation-triangle';
+                    break;
                 default:
                     bgColor = 'bg-gray-800';
                     textColor = 'text-white';
@@ -640,20 +645,6 @@
         resultText.addEventListener('input', updateCharCount);
         updateCharCount();
 
-        // 添加键盘快捷键
-        document.addEventListener('keydown', (e) => {
-            // Ctrl+C 复制结果
-            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && resultText.matches(':focus')) {
-                e.preventDefault();
-                document.getElementById('copy-right').click();
-            }
-
-            // Ctrl+V 粘贴到原文
-            if ((e.ctrlKey || e.metaKey) && e.key === 'v' && sourceText.matches(':focus')) {
-                e.preventDefault();
-                document.getElementById('paste-left').click();
-            }
-        });
     </script>
 <script src="/floating-ball/load-floating-ball.js"></script>
 </body>
