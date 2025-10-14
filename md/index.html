@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 文件查看器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-c.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-ruby.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/components/prism-bash.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.25.0/themes/prism.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+        
+        .content {
+            padding: 30px;
+            min-height: 400px;
+        }
+        
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .error h2 {
+            color: #f44336;
+            margin-bottom: 10px;
+        }
+        
+        .usage {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .usage h3 {
+            color: #0d47a1;
+            margin-bottom: 10px;
+        }
+        
+        .usage ul {
+            padding-left: 20px;
+        }
+        
+        .usage li {
+            margin-bottom: 8px;
+        }
+        
+        .usage code {
+            background: #bbdefb;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .file-input {
+            margin: 20px 0;
+            text-align: center;
+            padding: 0 20px;
+        }
+        
+        .file-input input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .file-input button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .file-input button:hover {
+            background: #1976d2;
+        }
+        
+        pre {
+            background: #f5f7f9;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            border: 1px solid #e0e0e0;
+        }
+        
+        code {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            background: #f5f7f9;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f1f8ff;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        blockquote {
+            border-left: 4px solid #2196f3;
+            padding: 10px 20px;
+            margin: 15px 0;
+            background: #e3f2fd;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Markdown 文件查看器</h1>
+            <p>支持本地文件、服务器文件和网络URL</p>
+        </div>
+        
+        <div class="content" id="content">
+            <!-- Markdown内容将在这里渲染 -->
+        </div>
+        
+        <div class="file-input">
+            <input type="file" id="localFile" accept=".md, .markdown">
+            <button onclick="loadLocalFile()">加载本地Markdown文件</button>
+        </div>
+        
+        <div class="footer">
+            <p>使用 marked.js 和 Prism.js 构建 | 支持标准Markdown语法</p>
+        </div>
+    </div>
+
+    <script>
+        // 获取URL参数
+        function getQueryParam(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="error">
+                    <h2>错误</h2>
+                    <p>${message}</p>
+                </div>
+                <div class="usage">
+                    <h3>使用方法</h3>
+                    <p>在URL中添加 <code>file</code> 或 <code>md</code> 参数指定Markdown文件：</p>
+                    <ul>
+                        <li><strong>服务器文件</strong>：相对路径或绝对路径<br><code>?file=/path/to/file.md</code></li>
+                        <li><strong>本地文件</strong>：通过文件选择器上传</li>
+                        <li><strong>网络URL</strong>：以http或https开头的完整URL<br><code>?md=https://example.com/file.md</code></li>
+                    </ul>
+                    <p>或者使用上面的文件选择器加载本地Markdown文件</p>
+                </div>
+            `;
+        }
+        
+        // 构建代理URL
+        function buildProxyUrl(originalUrl) {
+            const baseProxyUrl = "https://proxy.cnfaq.cn/";
+            const encodedUrl = encodeURIComponent(originalUrl);
+            return `${baseProxyUrl}?user_ua=1&referer=https://icp.aizhan.com/&url=${encodedUrl}`;
+        }
+        
+        function highlightCodeBlocks() {
+            // 确保Prism库已正确加载
+            if (typeof Prism === 'undefined') {
+                console.error('Prism.js库未加载');
+                return;
+            }
+
+            document.querySelectorAll('pre code').forEach((block) => {
+                try {
+                    // 检测语言类
+                    let language = 'javascript'; // 默认语言
+                    const classList = block.classList;
+                    
+                    // 定义支持的语言列表
+                    const supportedLanguages = [
+                        'python',
+                        'javascript',
+                        'java',
+                        'c',
+                        'cpp',
+                        'csharp',
+                        'go',
+                        'ruby',
+                        'sql',
+                        'bash'
+                    ];
+
+                    // 从class中查找语言定义
+                    for (let i = 0; i < classList.length; i++) {
+                        if (classList[i].startsWith('language-')) {
+                            const detectedLanguage = classList[i].replace('language-', '');
+                            
+                            // 只有当检测到的语言在支持列表中时才使用它
+                            if (supportedLanguages.includes(detectedLanguage)) {
+                                language = detectedLanguage;
+                            }
+                            break;
+                        }
+                    }
+
+
+                    // 移除所有现有语言类
+                    Array.from(block.classList).forEach(cls => {
+                        if (cls.startsWith('language-')) {
+                            block.classList.remove(cls);
+                        }
+                    });
+                    
+                    // 添加正确的语言类
+                    block.classList.add(`language-${language}`);
+                    
+                    // 执行高亮
+                    Prism.highlightElement(block);
+                } catch (error) {
+                    console.error(`代码高亮出错 (${block.className}):`, error);
+                    try {
+                        // 备用方案：使用纯文本高亮
+                        block.className = 'language-text';
+                        Prism.highlightElement(block);
+                    } catch (fallbackError) {
+                        console.error('备用高亮也失败:', fallbackError);
+                        // 最終方案：移除高亮类，显示原始代码
+                        block.className = '';
+                    }
+                }
+            });
+        }
+
+        
+        // 渲染Markdown内容
+        function renderMarkdownContent(markdownText) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = marked.parse(markdownText);
+            highlightCodeBlocks();
+            
+            // 成功加载时隐藏标题栏和页脚
+            document.querySelector('.header').style.display = 'none';
+            document.querySelector('.file-input').style.display = 'none';
+            document.querySelector('.footer').style.display = 'none';
+        }
+        
+        // 显示界面元素
+        function showInterfaceElements() {
+            document.querySelector('.header').style.display = 'block';
+            document.querySelector('.file-input').style.display = 'block';
+            document.querySelector('.footer').style.display = 'block';
+        }
+        
+        // 加载Markdown内容
+        async function loadMarkdownContent(fileParam) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = '<p>加载中...</p>';
+            
+            try {
+                let markdownContent = '';
+                
+                // 判断文件类型并处理
+                if (fileParam.startsWith('http://') || fileParam.startsWith('https://')) {
+                    // 网络URL文件 - 先尝试直接访问
+                    try {
+                        const response = await fetch(fileParam);
+                        if (!response.ok) throw new Error(`网络文件加载失败: ${response.status} ${response.statusText}`);
+                        markdownContent = await response.text();
+                    } catch (directError) {
+                        console.log('直接访问失败，尝试使用代理:', directError);
+                        // 使用代理重试
+                        const proxyUrl = buildProxyUrl(fileParam);
+                        const proxyResponse = await fetch(proxyUrl);
+                        if (!proxyResponse.ok) throw new Error(`代理文件加载失败: ${proxyResponse.status} ${proxyResponse.statusText}`);
+                        markdownContent = await proxyResponse.text();
+                    }
+                } else {
+                    // 服务器文件（相对或绝对路径）
+                    const response = await fetch(fileParam);
+                    if (!response.ok) throw new Error(`服务器文件找不到: ${fileParam}`);
+                    markdownContent = await response.text();
+                }
+                
+                renderMarkdownContent(markdownContent);
+                
+            } catch (error) {
+                showInterfaceElements();
+                showError(`处理文件时出错: ${error.message}<br>文件路径: ${fileParam}`);
+            }
+        }
+        
+        // 加载并渲染Markdown
+        async function loadMarkdown() {
+            // 获取文件参数（支持file和md）
+            let fileParam = getQueryParam('file') || getQueryParam('md');
+            
+            // 处理参数缺失
+            if (!fileParam) {
+                showError('缺少文件参数：请提供 file 或 md 参数');
+                return;
+            }
+            
+            await loadMarkdownContent(fileParam);
+        }
+        
+        // 加载本地文件
+        function loadLocalFile() {
+            const fileInput = document.getElementById('localFile');
+            const file = fileInput.files[0];
+            const contentDiv = document.getElementById('content');
+            
+            if (!file) {
+                showError('请先选择一个Markdown文件');
+                return;
+            }
+            
+            if (file.type !== 'text/markdown' && !file.name.endsWith('.md') && !file.name.endsWith('.markdown')) {
+                showError('请选择有效的Markdown文件 (.md 或 .markdown)');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                renderMarkdownContent(e.target.result);
+            };
+            reader.readAsText(file);
+        }
+        
+        // 页面加载时执行
+        window.onload = loadMarkdown;
+    </script>
+<script src="/floating-ball/load-floating-ball.js"></script>
+</body>
+</html>
+
