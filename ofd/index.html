@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFD文件查看器</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <!-- OFD.js - 使用用户提供的示例中的bundle文件 -->
+  <script src="ofd.bundle-v3.js"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#64748b',
+            accent: '#0ea5e9',
+            neutral: '#f1f5f9',
+            'neutral-dark': '#334155',
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .transition-all-300 {
+        transition: all 300ms ease-in-out;
+      }
+      .scrollbar-thin {
+        scrollbar-width: thin;
+      }
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .bg-gradient-blue {
+        background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-file-text-o text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-gray-800">OFD文件查看器</h1>
+      </div>
+      <div class="flex items-center space-x-4">
+        <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 transition-all-300">
+          <i class="fa fa-moon-o text-gray-600"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要内容区域 -->
+  <main class="flex-grow container mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
+    <!-- 左侧文件列表 -->
+    <div class="lg:w-1/4 bg-white rounded-lg shadow-card p-4 flex flex-col">
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">文件列表</h2>
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary transition-all-300 cursor-pointer" id="drop-area">
+          <i class="fa fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
+          <p class="text-sm text-gray-500">点击或拖拽OFD文件到此处</p>
+          <input type="file" id="file-input" class="hidden" accept=".ofd" multiple>
+        </div>
+      </div>
+      
+      <div class="flex-grow overflow-y-auto scrollbar-thin">
+        <ul id="file-list" class="space-y-2">
+          <!-- 文件列表将通过JavaScript动态生成 -->
+          <li class="text-gray-500 text-center italic py-4">暂无文件</li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- 右侧预览区域 -->
+    <div class="lg:w-3/4 bg-white rounded-lg shadow-card p-4 flex flex-col">
+      <div id="preview-header" class="mb-4 flex justify-between items-center">
+        <h2 class="text-lg font-semibold text-gray-800" id="document-title">请选择一个文件进行预览</h2>
+        <div class="flex items-center space-x-2">
+          <button id="zoom-out" class="p-2 rounded hover:bg-gray-100 transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fa fa-search-minus text-gray-600"></i>
+          </button>
+          <span id="zoom-level" class="text-sm text-gray-600">100%</span>
+          <button id="zoom-in" class="p-2 rounded hover:bg-gray-100 transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fa fa-search-plus text-gray-600"></i>
+          </button>
+          <button id="download" class="p-2 rounded hover:bg-gray-100 transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fa fa-download text-gray-600"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div id="preview-loading" class="hidden flex-grow flex items-center justify-center">
+        <div class="flex flex-col items-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <p class="mt-4 text-gray-600">正在加载文档...</p>
+        </div>
+      </div>
+      
+      <div id="preview-error" class="hidden flex-grow flex items-center justify-center">
+        <div class="flex flex-col items-center text-center p-4">
+          <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-2"></i>
+          <p class="text-red-500 font-medium">文档加载失败</p>
+          <p class="text-gray-600 mt-2" id="error-message">请检查文件是否损坏或格式不正确</p>
+        </div>
+      </div>
+      
+      <div id="preview-content" class="flex-grow overflow-y-auto scrollbar-thin p-2 hidden flex flex-col items-center">
+        <!-- 文档内容将通过JavaScript动态生成 -->
+      </div>
+      
+      <div id="no-file-selected" class="flex-grow flex items-center justify-center">
+        <div class="flex flex-col items-center text-center p-4">
+          <i class="fa fa-file-o text-5xl text-gray-300 mb-4"></i>
+          <p class="text-gray-500 text-lg">未选择文件</p>
+          <p class="text-gray-400 mt-2">请从左侧选择或上传一个OFD文件</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部信息 -->
+  <footer class="bg-white shadow-sm mt-auto">
+    <div class="container mx-auto px-4 py-4 text-center text-sm text-gray-500">
+      <p>© 2025 OFD文件查看器 | 使用 <a href="https://github.com/DLTech21/ofd.js" target="_blank" class="text-primary hover:underline">ofd.js</a> 构建</p>
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 全局变量
+      const fileInput = document.getElementById('file-input');
+      const dropArea = document.getElementById('drop-area');
+      const fileList = document.getElementById('file-list');
+      const documentTitle = document.getElementById('document-title');
+      const previewContent = document.getElementById('preview-content');
+      const previewLoading = document.getElementById('preview-loading');
+      const previewError = document.getElementById('preview-error');
+      const noFileSelected = document.getElementById('no-file-selected');
+      const errorMessage = document.getElementById('error-message');
+      const zoomIn = document.getElementById('zoom-in');
+      const zoomOut = document.getElementById('zoom-out');
+      const zoomLevel = document.getElementById('zoom-level');
+      const downloadBtn = document.getElementById('download');
+      const themeToggle = document.getElementById('theme-toggle');
+      
+      // 存储已上传的文件
+      let uploadedFiles = [];
+      let currentFileIndex = -1;
+      let currentZoom = 100;
+      const minZoom = 50;
+      const maxZoom = 200;
+      const zoomStep = 10;
+      
+      // 初始化
+      initFileUpload();
+      initEventListeners();
+      
+      // 初始化文件上传功能
+      function initFileUpload() {
+        // 点击上传区域触发文件选择
+        dropArea.addEventListener('click', () => {
+          fileInput.click();
+        });
+        
+        // 文件选择事件
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // 拖放功能
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+          dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+          dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+          dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+          dropArea.classList.add('border-primary');
+          dropArea.classList.add('bg-blue-50');
+        }
+        
+        function unhighlight() {
+          dropArea.classList.remove('border-primary');
+          dropArea.classList.remove('bg-blue-50');
+        }
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+          
+          if (files.length > 0) {
+            handleFiles(files);
+          }
+        }
+      }
+      
+      // 初始化事件监听器
+      function initEventListeners() {
+        // 缩放按钮
+        zoomIn.addEventListener('click', () => {
+          changeZoom(currentZoom + zoomStep);
+        });
+        
+        zoomOut.addEventListener('click', () => {
+          changeZoom(currentZoom - zoomStep);
+        });
+        
+        // 下载按钮
+        downloadBtn.addEventListener('click', () => {
+          if (currentFileIndex >= 0) {
+            const file = uploadedFiles[currentFileIndex];
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        });
+        
+        // 主题切换
+        themeToggle.addEventListener('click', toggleTheme);
+      }
+      
+      // 处理文件选择
+      function handleFileSelect(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      }
+      
+      // 处理文件
+      function handleFiles(files) {
+        // 过滤OFD文件
+        const ofdFiles = Array.from(files).filter(file => file.name.endsWith('.ofd'));
+        
+        if (ofdFiles.length === 0) {
+          showNotification('请选择OFD格式的文件', 'error');
+          return;
+        }
+        
+        // 添加到上传文件列表
+        ofdFiles.forEach(file => {
+          // 检查是否已存在相同文件
+          const existingIndex = uploadedFiles.findIndex(f => f.name === file.name && f.size === file.size);
+          if (existingIndex === -1) {
+            uploadedFiles.push(file);
+          }
+        });
+        
+        // 更新文件列表
+        updateFileList();
+        
+        // 如果是第一次上传文件，自动选择第一个
+        if (currentFileIndex === -1 && uploadedFiles.length > 0) {
+          selectFile(0);
+        }
+        
+        // 重置文件输入
+        fileInput.value = '';
+      }
+      
+      // 更新文件列表
+      function updateFileList() {
+        if (uploadedFiles.length === 0) {
+          fileList.innerHTML = '<li class="text-gray-500 text-center italic py-4">暂无文件</li>';
+          return;
+        }
+        
+        fileList.innerHTML = '';
+        uploadedFiles.forEach((file, index) => {
+          const li = document.createElement('li');
+          li.className = `p-2 rounded flex items-center justify-between cursor-pointer transition-all-300 ${index === currentFileIndex ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`;
+          li.innerHTML = `
+            <div class="flex items-center truncate">
+              <i class="fa fa-file-text-o mr-2"></i>
+              <span class="truncate">${file.name}</span>
+            </div>
+            <button class="text-gray-400 hover:text-red-500 transition-all-300" data-index="${index}">
+              <i class="fa fa-times"></i>
+            </button>
+          `;
+          
+          // 点击文件选择预览
+          li.querySelector('.truncate').addEventListener('click', () => {
+            selectFile(index);
+          });
+          
+          // 点击删除按钮
+          li.querySelector('button').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteFile(index);
+          });
+          
+          fileList.appendChild(li);
+        });
+      }
+      
+      // 选择文件进行预览
+      function selectFile(index) {
+        if (index < 0 || index >= uploadedFiles.length) return;
+        
+        currentFileIndex = index;
+        const file = uploadedFiles[index];
+        
+        // 更新UI
+        documentTitle.textContent = file.name;
+        updateFileList(); // 更新选中状态
+        
+        // 显示加载状态
+        showLoading();
+        
+        // 解析OFD文件
+        parseOfdFile(file);
+      }
+      
+      // 删除文件
+      function deleteFile(index) {
+        if (index < 0 || index >= uploadedFiles.length) return;
+        
+        // 如果删除的是当前正在预览的文件
+        if (index === currentFileIndex) {
+          // 清空预览
+          previewContent.innerHTML = '';
+          documentTitle.textContent = '请选择一个文件进行预览';
+          
+          // 禁用按钮
+          disablePreviewControls();
+          
+          // 显示无文件选中状态
+          showNoFileSelected();
+          
+          // 更新当前文件索引
+          if (uploadedFiles.length > 1) {
+            currentFileIndex = index === 0 ? 0 : index - 1;
+            selectFile(currentFileIndex);
+          } else {
+            currentFileIndex = -1;
+          }
+        } else if (index < currentFileIndex) {
+          // 如果删除的是当前文件之前的文件，更新索引
+          currentFileIndex--;
+        }
+        
+        // 从数组中删除文件
+        uploadedFiles.splice(index, 1);
+        
+        // 更新文件列表
+        updateFileList();
+      }
+      
+      // 解析OFD文件
+      function parseOfdFile(file) {
+        try {
+          // 重置缩放
+          currentZoom = 100;
+          zoomLevel.textContent = '100%';
+          
+          // 创建FileReader读取文件为ArrayBuffer
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const arrayBuffer = e.target.result;
+            
+            // 确保ofd库已正确加载
+            if (!window.ofd || typeof window.ofd.parseOfdDocument !== 'function') {
+              showError('ofd.js库未正确加载，请刷新页面重试');
+              console.error('ofd.js库未正确加载');
+              return;
+            }
+            
+            console.log('使用ofd.js解析文件:', file.name);
+            
+            // 解析OFD文件
+            window.ofd.parseOfdDocument({
+              ofd: arrayBuffer,
+              success() {
+                try {
+                  console.log('✅ 解析成功，开始渲染...');
+                  
+                  // 渲染文档0的所有页，宽度为800px
+                  // 根据示例：ofd.renderOfd(documentIndex, width)
+                  const divs = window.ofd.renderOfd(0, 800);
+                  
+                  if (!divs || divs.length === 0) {
+                    throw new Error('渲染OFD文件失败，未生成任何页面');
+                  }
+                  
+                  // 清空预览区域
+                  previewContent.innerHTML = '';
+                  
+                  // 添加所有页面
+                  divs.forEach(div => {
+                    previewContent.appendChild(div);
+                  });
+                  
+                  // 显示预览内容
+                  showPreviewContent();
+                  
+                  // 启用控制按钮
+                  enablePreviewControls();
+                } catch (renderError) {
+                  console.error('❌ 渲染失败:', renderError);
+                  showError(`渲染OFD文件失败: ${renderError.message || '未知错误'}`);
+                }
+              },
+              fail(error) {
+                console.error('❌ 解析失败:', error);
+                showError(`解析OFD文件失败: ${error.message || '未知错误'}`);
+              }
+            });
+          };
+          
+          reader.onerror = function() {
+            showError('读取文件失败，请尝试其他文件');
+            console.error('读取文件失败', reader.error);
+          };
+          
+          // 以ArrayBuffer形式读取文件
+          reader.readAsArrayBuffer(file);
+        } catch (error) {
+          console.error('解析OFD文件失败:', error);
+          showError(`解析文件失败: ${error.message || '未知错误'}`);
+        }
+      }
+      
+      // 改变缩放级别
+      function changeZoom(level) {
+        if (level < minZoom || level > maxZoom) return;
+        
+        currentZoom = level;
+        zoomLevel.textContent = `${currentZoom}%`;
+        
+        applyZoom();
+      }
+      
+      // 应用缩放
+      function applyZoom() {
+        const scale = currentZoom / 100;
+        
+        // 对每个页面应用缩放
+        const pages = previewContent.querySelectorAll('div[class*="ofd-page"]') || 
+                      previewContent.querySelectorAll('div');
+        
+        pages.forEach(page => {
+          page.style.transform = `scale(${scale})`;
+          page.style.transformOrigin = 'top left';
+          page.style.marginBottom = `${20 * scale}px`;
+        });
+        
+        // 调整容器大小以适应缩放后的内容
+        const containerWidth = 100 / scale;
+        previewContent.style.width = `${containerWidth}%`;
+      }
+      
+      // 启用预览控制按钮
+      function enablePreviewControls() {
+        zoomIn.disabled = false;
+        zoomOut.disabled = false;
+        downloadBtn.disabled = false;
+        
+        // 更新按钮状态
+        updateZoomButtonsState();
+      }
+      
+      // 禁用预览控制按钮
+      function disablePreviewControls() {
+        zoomIn.disabled = true;
+        zoomOut.disabled = true;
+        downloadBtn.disabled = true;
+      }
+      
+      // 更新缩放按钮状态
+      function updateZoomButtonsState() {
+        zoomOut.disabled = currentZoom <= minZoom;
+        zoomIn.disabled = currentZoom >= maxZoom;
+      }
+      
+      // 显示加载状态
+      function showLoading() {
+        previewLoading.classList.remove('hidden');
+        previewError.classList.add('hidden');
+        previewContent.classList.add('hidden');
+        noFileSelected.classList.add('hidden');
+      }
+      
+      // 显示错误状态
+      function showError(message) {
+        errorMessage.textContent = message;
+        previewLoading.classList.add('hidden');
+        previewError.classList.remove('hidden');
+        previewContent.classList.add('hidden');
+        noFileSelected.classList.add('hidden');
+        
+        // 禁用控制按钮
+        disablePreviewControls();
+      }
+      
+      // 显示预览内容
+      function showPreviewContent() {
+        previewLoading.classList.add('hidden');
+        previewError.classList.add('hidden');
+        previewContent.classList.remove('hidden');
+        previewContent.classList.add('block');
+        noFileSelected.classList.add('hidden');
+        
+        // 应用当前缩放
+        applyZoom();
+      }
+      
+      // 显示无文件选中状态
+      function showNoFileSelected() {
+        previewLoading.classList.add('hidden');
+        previewError.classList.add('hidden');
+        previewContent.classList.add('hidden');
+        noFileSelected.classList.remove('hidden');
+      }
+      
+      // 主题切换
+      function toggleTheme() {
+        document.body.classList.toggle('dark');
+        const icon = themeToggle.querySelector('i');
+        if (icon.classList.contains('fa-moon-o')) {
+          icon.classList.remove('fa-moon-o');
+          icon.classList.add('fa-sun-o');
+        } else {
+          icon.classList.remove('fa-sun-o');
+          icon.classList.add('fa-moon-o');
+        }
+      }
+      
+      // 显示通知
+      function showNotification(message, type = 'info') {
+        // 简单的通知实现，实际项目中可以使用更复杂的通知系统
+        alert(message);
+      }
+      
+      // 切换主题
+      function toggleTheme() {
+        document.body.classList.toggle('dark');
+        
+        const isDark = document.body.classList.contains('dark');
+        themeToggle.innerHTML = isDark ? 
+          '<i class="fa fa-sun-o text-yellow-400"></i>' : 
+          '<i class="fa fa-moon-o text-gray-600"></i>';
+      }
+      
+      // 显示通知
+      function showNotification(message, type = 'info') {
+        // 创建通知元素
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg z-50 transition-all-300 transform translate-y-0 opacity-100 ${
+          type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
+        }`;
+        notification.textContent = message;
+        
+        // 添加到页面
+        document.body.appendChild(notification);
+        
+        // 淡出效果
+        setTimeout(() => {
+          notification.classList.add('opacity-0', 'translate-y-4');
+          setTimeout(() => {
+            document.body.removeChild(notification);
+          }, 300);
+        }, 3000);
+      }
+    });
+  </script>
+</body>
+</html>
+
