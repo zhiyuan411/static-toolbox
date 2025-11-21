@@ -10,7 +10,7 @@
   <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <!-- OFD.js - 使用用户提供的示例中的bundle文件 -->
   <script src="ofd.bundle-v3.js"></script>
-  
+
   <script>
     tailwind.config = {
       theme: {
@@ -81,7 +81,7 @@
           <input type="file" id="file-input" class="hidden" accept=".ofd" multiple>
         </div>
       </div>
-      
+
       <div class="flex-grow overflow-y-auto scrollbar-thin">
         <ul id="file-list" class="space-y-2">
           <!-- 文件列表将通过JavaScript动态生成 -->
@@ -89,7 +89,7 @@
         </ul>
       </div>
     </div>
-    
+
     <!-- 右侧预览区域 -->
     <div class="lg:w-3/4 bg-white rounded-lg shadow-card p-4 flex flex-col">
       <div id="preview-header" class="mb-4 flex justify-between items-center">
@@ -105,16 +105,19 @@
           <button id="download" class="p-2 rounded hover:bg-gray-100 transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
             <i class="fa fa-download text-gray-600"></i>
           </button>
+          <button id="print-btn" class="p-2 rounded hover:bg-gray-100 transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <i class="fa fa-print text-gray-600"></i>
+          </button>
         </div>
       </div>
-      
+
       <div id="preview-loading" class="hidden flex-grow flex items-center justify-center">
         <div class="flex flex-col items-center">
           <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           <p class="mt-4 text-gray-600">正在加载文档...</p>
         </div>
       </div>
-      
+
       <div id="preview-error" class="hidden flex-grow flex items-center justify-center">
         <div class="flex flex-col items-center text-center p-4">
           <i class="fa fa-exclamation-circle text-4xl text-red-500 mb-2"></i>
@@ -122,11 +125,11 @@
           <p class="text-gray-600 mt-2" id="error-message">请检查文件是否损坏或格式不正确</p>
         </div>
       </div>
-      
+
       <div id="preview-content" class="flex-grow overflow-y-auto scrollbar-thin p-2 hidden flex flex-col items-center">
         <!-- 文档内容将通过JavaScript动态生成 -->
       </div>
-      
+
       <div id="no-file-selected" class="flex-grow flex items-center justify-center">
         <div class="flex flex-col items-center text-center p-4">
           <i class="fa fa-file-o text-5xl text-gray-300 mb-4"></i>
@@ -161,8 +164,9 @@
       const zoomOut = document.getElementById('zoom-out');
       const zoomLevel = document.getElementById('zoom-level');
       const downloadBtn = document.getElementById('download');
+      const printBtn = document.getElementById('print-btn'); // 👈 新增
       const themeToggle = document.getElementById('theme-toggle');
-      
+
       // 存储已上传的文件
       let uploadedFiles = [];
       let currentFileIndex = -1;
@@ -170,72 +174,72 @@
       const minZoom = 50;
       const maxZoom = 200;
       const zoomStep = 10;
-      
+
       // 初始化
       initFileUpload();
       initEventListeners();
-      
+
       // 初始化文件上传功能
       function initFileUpload() {
         // 点击上传区域触发文件选择
         dropArea.addEventListener('click', () => {
           fileInput.click();
         });
-        
+
         // 文件选择事件
         fileInput.addEventListener('change', handleFileSelect);
-        
+
         // 拖放功能
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
           dropArea.addEventListener(eventName, preventDefaults, false);
         });
-        
+
         function preventDefaults(e) {
           e.preventDefault();
           e.stopPropagation();
         }
-        
+
         ['dragenter', 'dragover'].forEach(eventName => {
           dropArea.addEventListener(eventName, highlight, false);
         });
-        
+
         ['dragleave', 'drop'].forEach(eventName => {
           dropArea.addEventListener(eventName, unhighlight, false);
         });
-        
+
         function highlight() {
           dropArea.classList.add('border-primary');
           dropArea.classList.add('bg-blue-50');
         }
-        
+
         function unhighlight() {
           dropArea.classList.remove('border-primary');
           dropArea.classList.remove('bg-blue-50');
         }
-        
+
         dropArea.addEventListener('drop', handleDrop, false);
-        
+
         function handleDrop(e) {
           const dt = e.dataTransfer;
           const files = dt.files;
-          
+
           if (files.length > 0) {
             handleFiles(files);
           }
         }
       }
-      
+
       // 初始化事件监听器
       function initEventListeners() {
         // 缩放按钮
         zoomIn.addEventListener('click', () => {
           changeZoom(currentZoom + zoomStep);
         });
-        
+
         zoomOut.addEventListener('click', () => {
           changeZoom(currentZoom - zoomStep);
         });
-        
+
         // 下载按钮
         downloadBtn.addEventListener('click', () => {
           if (currentFileIndex >= 0) {
@@ -250,11 +254,18 @@
             URL.revokeObjectURL(url);
           }
         });
-        
+
+        // 打印按钮 👈 新增
+        printBtn.addEventListener('click', () => {
+          if (currentFileIndex >= 0) {
+            printOfdDocument();
+          }
+        });
+
         // 主题切换
         themeToggle.addEventListener('click', toggleTheme);
       }
-      
+
       // 处理文件选择
       function handleFileSelect(e) {
         const files = e.target.files;
@@ -262,17 +273,17 @@
           handleFiles(files);
         }
       }
-      
+
       // 处理文件
       function handleFiles(files) {
         // 过滤OFD文件
         const ofdFiles = Array.from(files).filter(file => file.name.endsWith('.ofd'));
-        
+
         if (ofdFiles.length === 0) {
           showNotification('请选择OFD格式的文件', 'error');
           return;
         }
-        
+
         // 添加到上传文件列表
         ofdFiles.forEach(file => {
           // 检查是否已存在相同文件
@@ -281,26 +292,26 @@
             uploadedFiles.push(file);
           }
         });
-        
+
         // 更新文件列表
         updateFileList();
-        
+
         // 如果是第一次上传文件，自动选择第一个
         if (currentFileIndex === -1 && uploadedFiles.length > 0) {
           selectFile(0);
         }
-        
+
         // 重置文件输入
         fileInput.value = '';
       }
-      
+
       // 更新文件列表
       function updateFileList() {
         if (uploadedFiles.length === 0) {
           fileList.innerHTML = '<li class="text-gray-500 text-center italic py-4">暂无文件</li>';
           return;
         }
-        
+
         fileList.innerHTML = '';
         uploadedFiles.forEach((file, index) => {
           const li = document.createElement('li');
@@ -314,56 +325,56 @@
               <i class="fa fa-times"></i>
             </button>
           `;
-          
+
           // 点击文件选择预览
           li.querySelector('.truncate').addEventListener('click', () => {
             selectFile(index);
           });
-          
+
           // 点击删除按钮
           li.querySelector('button').addEventListener('click', (e) => {
             e.stopPropagation();
             deleteFile(index);
           });
-          
+
           fileList.appendChild(li);
         });
       }
-      
+
       // 选择文件进行预览
       function selectFile(index) {
         if (index < 0 || index >= uploadedFiles.length) return;
-        
+
         currentFileIndex = index;
         const file = uploadedFiles[index];
-        
+
         // 更新UI
         documentTitle.textContent = file.name;
         updateFileList(); // 更新选中状态
-        
+
         // 显示加载状态
         showLoading();
-        
+
         // 解析OFD文件
         parseOfdFile(file);
       }
-      
+
       // 删除文件
       function deleteFile(index) {
         if (index < 0 || index >= uploadedFiles.length) return;
-        
+
         // 如果删除的是当前正在预览的文件
         if (index === currentFileIndex) {
           // 清空预览
           previewContent.innerHTML = '';
           documentTitle.textContent = '请选择一个文件进行预览';
-          
+
           // 禁用按钮
           disablePreviewControls();
-          
+
           // 显示无文件选中状态
           showNoFileSelected();
-          
+
           // 更新当前文件索引
           if (uploadedFiles.length > 1) {
             currentFileIndex = index === 0 ? 0 : index - 1;
@@ -375,61 +386,60 @@
           // 如果删除的是当前文件之前的文件，更新索引
           currentFileIndex--;
         }
-        
+
         // 从数组中删除文件
         uploadedFiles.splice(index, 1);
-        
+
         // 更新文件列表
         updateFileList();
       }
-      
+
       // 解析OFD文件
       function parseOfdFile(file) {
         try {
           // 重置缩放
           currentZoom = 100;
           zoomLevel.textContent = '100%';
-          
+
           // 创建FileReader读取文件为ArrayBuffer
           const reader = new FileReader();
           reader.onload = function(e) {
             const arrayBuffer = e.target.result;
-            
+
             // 确保ofd库已正确加载
             if (!window.ofd || typeof window.ofd.parseOfdDocument !== 'function') {
               showError('ofd.js库未正确加载，请刷新页面重试');
               console.error('ofd.js库未正确加载');
               return;
             }
-            
+
             console.log('使用ofd.js解析文件:', file.name);
-            
+
             // 解析OFD文件
             window.ofd.parseOfdDocument({
               ofd: arrayBuffer,
               success() {
                 try {
                   console.log('✅ 解析成功，开始渲染...');
-                  
+
                   // 渲染文档0的所有页，宽度为800px
-                  // 根据示例：ofd.renderOfd(documentIndex, width)
                   const divs = window.ofd.renderOfd(0, 800);
-                  
+
                   if (!divs || divs.length === 0) {
                     throw new Error('渲染OFD文件失败，未生成任何页面');
                   }
-                  
+
                   // 清空预览区域
                   previewContent.innerHTML = '';
-                  
+
                   // 添加所有页面
                   divs.forEach(div => {
                     previewContent.appendChild(div);
                   });
-                  
+
                   // 显示预览内容
                   showPreviewContent();
-                  
+
                   // 启用控制按钮
                   enablePreviewControls();
                 } catch (renderError) {
@@ -443,12 +453,12 @@
               }
             });
           };
-          
+
           reader.onerror = function() {
             showError('读取文件失败，请尝试其他文件');
             console.error('读取文件失败', reader.error);
           };
-          
+
           // 以ArrayBuffer形式读取文件
           reader.readAsArrayBuffer(file);
         } catch (error) {
@@ -456,59 +466,59 @@
           showError(`解析文件失败: ${error.message || '未知错误'}`);
         }
       }
-      
+
       // 改变缩放级别
       function changeZoom(level) {
         if (level < minZoom || level > maxZoom) return;
-        
+
         currentZoom = level;
         zoomLevel.textContent = `${currentZoom}%`;
-        
+
         applyZoom();
       }
-      
+
       // 应用缩放
       function applyZoom() {
         const scale = currentZoom / 100;
-        
+
         // 对每个页面应用缩放
-        const pages = previewContent.querySelectorAll('div[class*="ofd-page"]') || 
+        const pages = previewContent.querySelectorAll('div[class*="ofd-page"]') ||
                       previewContent.querySelectorAll('div');
-        
+
         pages.forEach(page => {
           page.style.transform = `scale(${scale})`;
           page.style.transformOrigin = 'top left';
           page.style.marginBottom = `${20 * scale}px`;
         });
-        
+
         // 调整容器大小以适应缩放后的内容
         const containerWidth = 100 / scale;
         previewContent.style.width = `${containerWidth}%`;
       }
-      
+
       // 启用预览控制按钮
       function enablePreviewControls() {
         zoomIn.disabled = false;
         zoomOut.disabled = false;
         downloadBtn.disabled = false;
-        
-        // 更新按钮状态
+        printBtn.disabled = false; // 👈 启用打印按钮
         updateZoomButtonsState();
       }
-      
+
       // 禁用预览控制按钮
       function disablePreviewControls() {
         zoomIn.disabled = true;
         zoomOut.disabled = true;
         downloadBtn.disabled = true;
+        printBtn.disabled = true; // 👈 禁用打印按钮
       }
-      
+
       // 更新缩放按钮状态
       function updateZoomButtonsState() {
         zoomOut.disabled = currentZoom <= minZoom;
         zoomIn.disabled = currentZoom >= maxZoom;
       }
-      
+
       // 显示加载状态
       function showLoading() {
         previewLoading.classList.remove('hidden');
@@ -516,7 +526,7 @@
         previewContent.classList.add('hidden');
         noFileSelected.classList.add('hidden');
       }
-      
+
       // 显示错误状态
       function showError(message) {
         errorMessage.textContent = message;
@@ -524,11 +534,11 @@
         previewError.classList.remove('hidden');
         previewContent.classList.add('hidden');
         noFileSelected.classList.add('hidden');
-        
+
         // 禁用控制按钮
         disablePreviewControls();
       }
-      
+
       // 显示预览内容
       function showPreviewContent() {
         previewLoading.classList.add('hidden');
@@ -536,11 +546,11 @@
         previewContent.classList.remove('hidden');
         previewContent.classList.add('block');
         noFileSelected.classList.add('hidden');
-        
+
         // 应用当前缩放
         applyZoom();
       }
-      
+
       // 显示无文件选中状态
       function showNoFileSelected() {
         previewLoading.classList.add('hidden');
@@ -548,49 +558,26 @@
         previewContent.classList.add('hidden');
         noFileSelected.classList.remove('hidden');
       }
-      
+
       // 主题切换
       function toggleTheme() {
         document.body.classList.toggle('dark');
-        const icon = themeToggle.querySelector('i');
-        if (icon.classList.contains('fa-moon-o')) {
-          icon.classList.remove('fa-moon-o');
-          icon.classList.add('fa-sun-o');
-        } else {
-          icon.classList.remove('fa-sun-o');
-          icon.classList.add('fa-moon-o');
-        }
-      }
-      
-      // 显示通知
-      function showNotification(message, type = 'info') {
-        // 简单的通知实现，实际项目中可以使用更复杂的通知系统
-        alert(message);
-      }
-      
-      // 切换主题
-      function toggleTheme() {
-        document.body.classList.toggle('dark');
-        
+
         const isDark = document.body.classList.contains('dark');
-        themeToggle.innerHTML = isDark ? 
-          '<i class="fa fa-sun-o text-yellow-400"></i>' : 
+        themeToggle.innerHTML = isDark ?
+          '<i class="fa fa-sun-o text-yellow-400"></i>' :
           '<i class="fa fa-moon-o text-gray-600"></i>';
       }
-      
+
       // 显示通知
       function showNotification(message, type = 'info') {
-        // 创建通知元素
         const notification = document.createElement('div');
         notification.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg z-50 transition-all-300 transform translate-y-0 opacity-100 ${
           type === 'error' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
         }`;
         notification.textContent = message;
-        
-        // 添加到页面
         document.body.appendChild(notification);
-        
-        // 淡出效果
+
         setTimeout(() => {
           notification.classList.add('opacity-0', 'translate-y-4');
           setTimeout(() => {
@@ -598,8 +585,68 @@
           }, 300);
         }, 3000);
       }
+
+      // 👇 新增：打印 OFD 文档函数
+      function printOfdDocument() {
+        const content = previewContent.innerHTML;
+        if (!content.trim()) {
+          showNotification('无可打印内容', 'error');
+          return;
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>打印 OFD 文档</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 0;
+                font-family: sans-serif;
+              }
+              .ofd-page {
+                page-break-after: always;
+                break-after: page;
+                transform: none !important;
+                transform-origin: unset !important;
+                margin: 0 !important;
+                width: auto !important;
+                max-width: 100% !important;
+                height: auto !important;
+                box-sizing: border-box;
+              }
+              @media print {
+                body {
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            ${content}
+          </body>
+          </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          document.body.removeChild(iframe);
+        }, 500);
+      }
     });
   </script>
 </body>
 </html>
-
