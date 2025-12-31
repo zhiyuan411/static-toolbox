@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拼音软输入法</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome图标库（6.4.0） -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 自定义Tailwind配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        input: '#f8fafc',
+                        candidate: '#e2e8f0',
+                        candidateHover: '#cbd5e1',
+                        button: '#3b82f6',
+                        buttonHover: '#2563eb',
+                        info: '#f0f9ff',
+                        toggleOn: '#10b981',
+                        toggleOff: '#6b7280',
+                        specialChar: '#f9fafb',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .candidate-item {
+                @apply px-3 py-2 rounded-md cursor-pointer hover:bg-candidateHover transition-colors duration-150;
+            }
+            .func-btn {
+                @apply flex items-center justify-center w-10 h-10 rounded-md bg-button text-white hover:bg-buttonHover transition-colors duration-150 relative;
+            }
+            .func-btn-tooltip {
+                @apply absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-10;
+            }
+            .input-focus {
+                @apply focus:ring-2 focus:ring-button/50 focus:outline-none;
+            }
+            .info-card {
+                @apply bg-info border border-blue-100 rounded-lg p-4 mt-6;
+            }
+            .toggle-btn {
+                @apply px-3 py-1.5 rounded-md transition-colors duration-200 text-white flex items-center gap-1;
+            }
+            .special-char-modal {
+                @apply fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-2xl p-4 w-full max-w-xl z-50;
+            }
+            .char-category-tab {
+                @apply px-3 py-1.5 rounded-t-md cursor-pointer transition-colors duration-200 text-sm;
+            }
+            .char-item {
+                @apply w-10 h-10 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-200 transition-colors duration-150 text-lg;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 relative">
+    <div class="w-full max-w-2xl bg-white rounded-lg shadow-lg p-6">
+        <!-- 标题区域 -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">拼音软输入法</h1>
+            <p class="text-gray-500 mt-1">输入拼音，选择候选字词，支持数字快捷键(1-9)和翻页操作</p>
+        </div>
+
+        <!-- 输出显示区 -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">输入结果</label>
+            <textarea id="outputArea" class="w-full h-32 p-3 border border-gray-300 rounded-md input-focus resize-none" readonly placeholder="选择的字词会显示在这里..."></textarea>
+        </div>
+
+        <!-- 拼音输入区 -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">拼音输入</label>
+            <input type="text" id="pinyinInput" class="w-full p-3 border border-gray-300 rounded-md input-focus lowercase" placeholder="输入拼音（如：ai、aba），按空格选第一个候选词，回车直接输入当前内容" autocomplete="off">
+        </div>
+
+        <!-- 候选词区域 -->
+        <div id="candidateArea" class="mb-6 hidden">
+            <div class="flex justify-between items-center mb-2">
+                <label class="block text-sm font-medium text-gray-700">候选字词</label>
+                <span id="pageInfo" class="text-xs text-gray-500">第1页/共1页</span>
+            </div>
+            <div id="candidateList" class="flex flex-wrap gap-2 bg-candidate p-3 rounded-md min-h-[50px]">
+                <!-- 候选词会动态生成在这里 -->
+            </div>
+        </div>
+
+        <!-- 功能按钮区 -->
+        <div class="flex flex-wrap gap-3 justify-center items-center">
+            <!-- 复制按钮 -->
+            <div class="group">
+                <button id="copyBtn" class="func-btn" title="复制输入结果">
+                    <i class="fas fa-copy text-lg"></i>
+                </button>
+                <span class="func-btn-tooltip">复制输入结果</span>
+            </div>
+            <!-- 搜索按钮 -->
+            <div class="group">
+                <button id="searchBtn" class="func-btn" title="百度搜索输入结果">
+                    <i class="fas fa-search text-lg"></i>
+                </button>
+                <span class="func-btn-tooltip">百度搜索输入结果</span>
+            </div>
+            <!-- 清空按钮 -->
+            <div class="group">
+                <button id="clearBtn" class="func-btn" title="清空所有内容">
+                    <i class="fas fa-trash text-lg"></i>
+                </button>
+                <span class="func-btn-tooltip">清空所有内容</span>
+            </div>
+            <!-- 删除按钮 -->
+            <div class="group">
+                <button id="deleteBtn" class="func-btn" title="删除最后一个字符">
+                    <i class="fas fa-backspace text-lg"></i>
+                </button>
+                <span class="func-btn-tooltip">删除最后一个字符</span>
+            </div>
+            <!-- 上一页按钮 -->
+            <div class="group">
+                <button id="prevPageBtn" class="func-btn" title="上一页候选词">
+                    <i class="fas fa-chevron-left text-lg"></i>
+                </button>
+                <span class="func-btn-tooltip">上一页候选词</span>
+            </div>
+            <!-- 下一页按钮 -->
+            <div class="group">
+                <button id="nextPageBtn" class="func-btn" title="下一页候选词">
+                    <i class="fas fa-chevron-right text-lg"></i>
+                </button>
+                <span class="func-btn-tooltip">下一页候选词</span>
+            </div>
+            <!-- 全角/半角切换按钮 -->
+            <div class="group">
+                <button id="fullHalfToggle" class="toggle-btn bg-toggleOff" title="切换全角/半角符号">
+                    <i class="fas fa-exchange-alt text-sm"></i>
+                    <span id="toggleText">半角</span>
+                </button>
+                <span class="func-btn-tooltip">切换全角/半角符号输入</span>
+            </div>
+            <!-- 特殊字符按钮（修复图标） -->
+            <div class="group">
+                <button id="specialCharBtn" class="func-btn" title="打开特殊字符面板">
+                    <i class="fas fa-icons text-lg"></i> <!-- 替换为支持的图标类 -->
+                </button>
+                <span class="func-btn-tooltip">打开特殊字符选择面板</span>
+            </div>
+        </div>
+
+        <!-- 状态提示 -->
+        <div id="statusTip" class="mt-4 text-center text-sm text-gray-500 min-h-[20px]">
+            加载词典中...
+        </div>
+
+        <!-- 功能和快捷键说明区域 -->
+        <div class="info-card">
+            <h3 class="text-lg font-semibold text-blue-800 mb-3">📖 功能与快捷键说明</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- 基础操作 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">基础输入</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">1-9</kbd>：选择对应序号的候选词</li>
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">空格</kbd>：快速输入第一个候选词</li>
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">Enter</kbd>：直接输入拼音框内的内容</li>
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">Backspace</kbd>：拼音框为空时删除结果最后一个字符</li>
+                    </ul>
+                </div>
+                <!-- 翻页操作 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">翻页操作</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">PageUp / [ / -</kbd>：候选词上一页</li>
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">PageDown / ] / =</kbd>：候选词下一页</li>
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">← 按钮</kbd>：手动点击上一页</li>
+                        <li><kbd class="px-1 py-0.5 bg-gray-200 rounded">→ 按钮</kbd>：手动点击下一页</li>
+                    </ul>
+                </div>
+                <!-- 功能按钮 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">功能按钮</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li><i class="fas fa-copy mr-1"></i> 复制：复制结果区所有内容</li>
+                        <li><i class="fas fa-search mr-1"></i> 搜索：用结果内容打开百度搜索</li>
+                        <li><i class="fas fa-trash mr-1"></i> 清空：清空所有输入内容</li>
+                        <li><i class="fas fa-backspace mr-1"></i> 删除：删除结果最后一个字符</li>
+                        <li><i class="fas fa-exchange-alt mr-1"></i> 全角/半角：切换符号输入格式</li>
+                        <li><i class="fas fa-icons mr-1"></i> 特殊字符：打开字符选择面板</li>
+                    </ul>
+                </div>
+                <!-- 其他说明 -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">其他说明</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>拼音输入自动转为小写，无需区分大小写</li>
+                        <li>候选词最多每页显示9个，支持多页翻查</li>
+                        <li>无匹配拼音时会提示"无匹配字词"</li>
+                        <li>所有操作均在本地完成，无数据上传</li>
+                        <li>全角模式下，输入的符号自动转为中文全角符号</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 特殊字符选择悬浮框（修复z-index和显示逻辑） -->
+    <div id="specialCharModal" class="special-char-modal hidden">
+        <!-- 关闭按钮 -->
+        <div class="flex justify-between items-center mb-3 border-b pb-2">
+            <h3 class="font-semibold text-gray-800">特殊字符选择</h3>
+            <button id="closeSpecialCharBtn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors">
+                <i class="fas fa-times text-gray-600"></i>
+            </button>
+        </div>
+
+        <!-- 字符分类标签 -->
+        <div id="charCategoryTabs" class="flex flex-wrap gap-1 mb-3 border-b pb-2 overflow-x-auto">
+            <!-- 分类标签动态生成 -->
+        </div>
+
+        <!-- 字符展示区域 -->
+        <div id="charDisplayArea" class="grid grid-cols-8 gap-1 max-h-60 overflow-y-auto p-2 bg-specialChar rounded-md">
+            <!-- 字符动态生成 -->
+        </div>
+    </div>
+
+    <!-- 遮罩层（修复z-index） -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/30 z-40 hidden"></div>
+
+    <script>
+        // 全局变量
+        let pinyinDict = {};
+        let half2full = {}; // 全角半角映射（从文件加载）
+        let specialChars = {}; // 特殊字符分类（从文件加载）
+        let candidateWords = [];
+        let currentPage = 0; // 当前页码（从0开始）
+        const pageSize = 9; // 每页显示9个候选词（适配数字键1-9）
+        let totalPages = 0; // 总页数
+        let isFullWidthMode = false; // 是否开启全角模式（默认关闭，即半角模式）
+        let currentCharCategory = ''; // 当前选中的字符分类
+        let initialsDict = {}; // 声母字典
+        let prefixDict = {}; // 前缀字典
+        let greedyMatched = false; // 标记当前是否是贪心匹配模式
+        
+        // 声母元数据字典
+        const INITIALS_MAP = {
+            'b': 'b', 'p': 'p', 'm': 'm', 'f': 'f', 'd': 'd', 't': 't', 'n': 'n', 'l': 'l',
+            'g': 'g', 'k': 'k', 'h': 'h', 'j': 'j', 'q': 'q', 'x': 'x',
+            'zh': 'zh', 'ch': 'ch', 'sh': 'sh', 'r': 'r',
+            'z': 'z', 'c': 'c', 's': 's', 'y': 'y', 'w': 'w'
+        };
+
+        // DOM元素（提前缓存，避免重复获取）
+        const dom = {
+            pinyinInput: document.getElementById('pinyinInput'),
+            outputArea: document.getElementById('outputArea'),
+            candidateArea: document.getElementById('candidateArea'),
+            candidateList: document.getElementById('candidateList'),
+            pageInfo: document.getElementById('pageInfo'),
+            copyBtn: document.getElementById('copyBtn'),
+            searchBtn: document.getElementById('searchBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            deleteBtn: document.getElementById('deleteBtn'),
+            prevPageBtn: document.getElementById('prevPageBtn'),
+            nextPageBtn: document.getElementById('nextPageBtn'),
+            statusTip: document.getElementById('statusTip'),
+            fullHalfToggle: document.getElementById('fullHalfToggle'),
+            toggleText: document.getElementById('toggleText'),
+            specialCharBtn: document.getElementById('specialCharBtn'),
+            specialCharModal: document.getElementById('specialCharModal'),
+            closeSpecialCharBtn: document.getElementById('closeSpecialCharBtn'),
+            modalOverlay: document.getElementById('modalOverlay'),
+            charCategoryTabs: document.getElementById('charCategoryTabs'),
+            charDisplayArea: document.getElementById('charDisplayArea')
+        };
+
+        // 1. 统一加载所有词典文件
+        async function loadAllDicts() {
+            try {
+                // 并行加载三个词典文件
+                const [pinyinRes, half2fullRes, specialCharsRes] = await Promise.all([
+                    fetch('./pinyin_dict.json'),
+                    fetch('./half2full.json'),
+                    fetch('./special_chars.json')
+                ]);
+
+                // 检查响应状态
+                if (!pinyinRes.ok) throw new Error('拼音词典加载失败');
+                if (!half2fullRes.ok) throw new Error('全角半角映射词典加载失败');
+                if (!specialCharsRes.ok) throw new Error('特殊字符词典加载失败');
+
+                // 解析JSON
+                pinyinDict = await pinyinRes.json();
+                half2full = await half2fullRes.json();
+                specialChars = await specialCharsRes.json();
+                currentCharCategory = Object.keys(specialChars)[0] || '';
+
+                // 生成声母字典和前缀字典
+                generateInitialsDict();
+                generatePrefixDict();
+
+                dom.statusTip.textContent = '所有词典加载完成，可开始输入';
+                dom.statusTip.className = 'mt-4 text-center text-sm text-green-600';
+
+                // 初始化特殊字符面板
+                initSpecialCharPanel();
+            } catch (error) {
+                dom.statusTip.textContent = `加载失败: ${error.message}，请检查文件是否存在`;
+                dom.statusTip.className = 'mt-4 text-center text-sm text-red-500';
+                console.error('词典加载失败:', error);
+            }
+        }
+
+        // 生成声母字典
+        function generateInitialsDict() {
+            initialsDict = {};
+            
+            for (const [pinyin, words] of Object.entries(pinyinDict)) {
+                const initials = extractInitials(pinyin);
+                if (initials) {
+                    if (!initialsDict[initials]) {
+                        initialsDict[initials] = [];
+                    }
+                    // 合并候选词，去重
+                    for (const word of words) {
+                        if (!initialsDict[initials].includes(word)) {
+                            initialsDict[initials].push(word);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 生成前缀字典
+        function generatePrefixDict() {
+            prefixDict = {};
+            
+            for (const [pinyin, words] of Object.entries(pinyinDict)) {
+                const prefix = getPinyinPrefix(pinyin);
+                if (prefix) {
+                    if (!prefixDict[prefix]) {
+                        prefixDict[prefix] = [];
+                    }
+                    // 合并候选词，去重
+                    for (const word of words) {
+                        if (!prefixDict[prefix].includes(word)) {
+                            prefixDict[prefix].push(word);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 从拼音字符串中提取声母
+        function extractInitials(pinyin) {
+            let result = '';
+            let i = 0;
+            
+            while (i < pinyin.length) {
+                let matched = false;
+                
+                // 检查最长匹配（优先匹配2字符的声母）
+                for (let j = 2; j >= 1; j--) {
+                    if (i + j <= pinyin.length) {
+                        const sub = pinyin.substring(i, i + j);
+                        if (INITIALS_MAP[sub]) {
+                            result += sub;
+                            i += j;
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // 如果没有匹配到声母，检查是否是韵母开头（如a, e, o等），跳过
+                if (!matched) {
+                    i++;
+                }
+            }
+            
+            return result;
+        }
+
+        // 获取拼音前缀（将最后一个字替换为声母）
+        function getPinyinPrefix(pinyin) {
+            const initials = extractInitials(pinyin);
+            if (initials.length < 2) {
+                return null; // 如果声母个数小于2，不生成前缀
+            }
+            
+            // 找到最后一个声母的起始位置
+            let lastInitial = '';
+            let lastInitialPos = 0;
+            
+            // 从后向前查找最后一个声母
+            for (let i = pinyin.length; i >= 0; i--) {
+                for (let j = 2; j >= 1; j--) {
+                    if (i - j >= 0) {
+                        const sub = pinyin.substring(i - j, i);
+                        if (INITIALS_MAP[sub]) {
+                            // 这是最后一个声母
+                            lastInitial = sub;
+                            lastInitialPos = i - j;
+                            
+                            // 替换最后一个字为声母
+                            return pinyin.substring(0, lastInitialPos) + lastInitial;
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        // 2. 修复全角半角转换逻辑（核心BUG修复）
+        function convertToFullWidth(text) {
+            // 非全角模式直接返回原文本
+            if (!isFullWidthMode || !text || typeof text !== 'string') return text;
+
+            let result = '';
+            for (let char of text) {
+                // 优先使用映射表，无映射则保留原字符
+                result += half2full[char] || char;
+            }
+            return result;
+        }
+
+        // 3. 计算总页数并更新页码信息
+        function updatePageInfo() {
+            totalPages = Math.ceil(candidateWords.length / pageSize);
+            const currentPageNum = currentPage + 1;
+            dom.pageInfo.textContent = `第${currentPageNum}页/共${totalPages || 1}页`;
+
+            // 禁用/启用翻页按钮
+            dom.prevPageBtn.disabled = currentPage <= 0;
+            dom.nextPageBtn.disabled = currentPage >= totalPages - 1;
+            dom.prevPageBtn.style.opacity = currentPage <= 0 ? '0.5' : '1';
+            dom.nextPageBtn.style.opacity = currentPage >= totalPages - 1 ? '0.5' : '1';
+        }
+
+        // 贪心算法匹配输入中最长的可匹配头部
+        function greedyMatchPinyin(input) {
+            let bestMatch = null;
+            let bestLength = 0;
+            
+            // 查找最长的匹配
+            for (const [pinyin, words] of Object.entries(pinyinDict)) {
+                if (input.startsWith(pinyin) && pinyin.length > bestLength) {
+                    bestMatch = { pinyin, words };
+                    bestLength = pinyin.length;
+                }
+            }
+            
+            return bestMatch;
+        }
+
+        // 4. 匹配拼音并渲染候选词（支持翻页）- 新增匹配逻辑
+        function renderCandidates(pinyin) {
+            candidateWords = [];
+            dom.candidateList.innerHTML = '';
+            currentPage = 0; // 重置页码
+            greedyMatched = false; // 重置贪心匹配标志
+
+            // 拼音为空时隐藏候选区
+            if (!pinyin.trim()) {
+                dom.candidateArea.classList.add('hidden');
+                return;
+            }
+
+            const pinyinLower = pinyin.toLowerCase();
+            let matchedWords = [];
+            let greedyMatchResult = null;
+            
+            // 步骤i：先匹配原拼音字典
+            if (pinyinDict[pinyinLower]) {
+                matchedWords = pinyinDict[pinyinLower];
+            }
+            // 步骤ii：如果没有匹配，则匹配前缀字典
+            else if (!matchedWords.length && prefixDict[pinyinLower]) {
+                matchedWords = prefixDict[pinyinLower];
+            }
+            // 步骤iii：如果前缀字典没有匹配，则匹配声母字典
+            else if (!matchedWords.length && initialsDict[pinyinLower]) {
+                matchedWords = initialsDict[pinyinLower];
+            }
+            // 步骤iv：如果都没有匹配，使用贪心算法
+            else if (!matchedWords.length) {
+                greedyMatchResult = greedyMatchPinyin(pinyinLower);
+                if (greedyMatchResult) {
+                    matchedWords = greedyMatchResult.words;
+                    greedyMatched = true;
+                }
+            }
+
+            candidateWords = matchedWords;
+
+            if (matchedWords.length === 0) {
+                dom.candidateList.innerHTML = '<span class="text-gray-500">无匹配字词</span>';
+                dom.candidateArea.classList.remove('hidden');
+                updatePageInfo();
+                return;
+            }
+
+            // 渲染当前页的候选词
+            renderCurrentPageCandidates();
+            dom.candidateArea.classList.remove('hidden');
+            updatePageInfo();
+        }
+
+        // 5. 渲染当前页的候选词
+        function renderCurrentPageCandidates() {
+            dom.candidateList.innerHTML = '';
+            const start = currentPage * pageSize;
+            const end = start + pageSize;
+            const currentPageWords = candidateWords.slice(start, end);
+
+            if (currentPageWords.length === 0) {
+                dom.candidateList.innerHTML = '<span class="text-gray-500">当前页无候选词</span>';
+                return;
+            }
+
+            // 生成候选词项
+            currentPageWords.forEach((word, index) => {
+                const num = index + 1;
+                const candidateItem = document.createElement('span');
+                candidateItem.className = 'candidate-item';
+                candidateItem.innerHTML = `<span class="font-bold text-button mr-1">${num}</span>${word}`;
+                candidateItem.dataset.index = start + index; // 真实索引
+                candidateItem.addEventListener('click', () => selectCandidate(start + index));
+                dom.candidateList.appendChild(candidateItem);
+            });
+        }
+
+        // 6. 翻页功能
+        function changePage(offset) {
+            const newPage = currentPage + offset;
+            if (newPage >= 0 && newPage < totalPages) {
+                currentPage = newPage;
+                renderCurrentPageCandidates();
+                updatePageInfo();
+                dom.pinyinInput.focus();
+            }
+        }
+
+        // 7. 选择候选词（核心修复：清空候选词数组，新增贪心匹配处理）
+        function selectCandidate(index) {
+            if (index >= 0 && index < candidateWords.length) {
+                const selectedWord = candidateWords[index];
+                
+                // 如果是贪心匹配模式
+                if (greedyMatched) {
+                    // 获取当前输入
+                    const currentInput = dom.pinyinInput.value.toLowerCase();
+                    
+                    // 贪心匹配最长的拼音
+                    const greedyResult = greedyMatchPinyin(currentInput);
+                    if (greedyResult) {
+                        // 将候选词输入到结果框
+                        dom.outputArea.value += selectedWord;
+                        
+                        // 从输入中去掉匹配成功的头部字符串
+                        const remainingInput = currentInput.substring(greedyResult.pinyin.length);
+                        dom.pinyinInput.value = remainingInput;
+                        
+                        // 对剩余部分重新进行处理
+                        if (remainingInput.length > 0) {
+                            renderCandidates(remainingInput);
+                        } else {
+                            // 清空候选词数组
+                            candidateWords = [];
+                            currentPage = 0;
+                            updatePageInfo();
+                            dom.candidateList.innerHTML = '';
+                            dom.candidateArea.classList.add('hidden');
+                        }
+                    }
+                } else {
+                    // 正常选择候选词
+                    dom.outputArea.value += selectedWord;
+                    dom.pinyinInput.value = '';
+                    // 关键修复1：清空候选词数组
+                    candidateWords = [];
+                    // 关键修复2：重置页码
+                    currentPage = 0;
+                    // 关键修复3：更新页码信息
+                    updatePageInfo();
+                    // 清空候选词列表DOM
+                    dom.candidateList.innerHTML = '';
+                    dom.candidateArea.classList.add('hidden');
+                }
+                dom.pinyinInput.focus();
+            }
+        }
+
+        // 8. 复制功能（移除trim，保留所有空格）
+        function copyToClipboard() {
+            const text = dom.outputArea.value; // 移除trim()，原样复制
+            if (!text) {
+                showTip('没有可复制的内容', 'red');
+                return;
+            }
+            navigator.clipboard.writeText(text)
+                .then(() => showTip('复制成功！', 'green'))
+                .catch(() => {
+                    // 降级方案
+                    dom.outputArea.select();
+                    document.execCommand('copy');
+                    showTip('复制成功！', 'green');
+                });
+        }
+
+        // 9. 搜索功能（百度搜索）
+        function searchInBaidu() {
+            const text = dom.outputArea.value.trim();
+            if (!text) {
+                showTip('没有可搜索的内容', 'red');
+                return;
+            }
+            const searchUrl = `https://www.baidu.com/s?wd=${encodeURIComponent(text)}`;
+            window.open(searchUrl, '_blank');
+        }
+
+        // 10. 清空功能
+        function clearAll() {
+            dom.outputArea.value = '';
+            dom.pinyinInput.value = '';
+            // 清空候选词数组
+            candidateWords = [];
+            currentPage = 0;
+            updatePageInfo();
+            dom.candidateList.innerHTML = '';
+            dom.candidateArea.classList.add('hidden');
+            showTip('已清空所有内容', 'gray');
+            dom.pinyinInput.focus();
+        }
+
+        // 11. 删除最后一个字符
+        function deleteLastChar() {
+            const currentValue = dom.outputArea.value;
+            dom.outputArea.value = currentValue.substring(0, currentValue.length - 1);
+            dom.pinyinInput.focus();
+        }
+
+        // 12. 显示提示信息
+        function showTip(message, color) {
+            dom.statusTip.textContent = message;
+            const colorClass = {
+                green: 'text-green-600',
+                red: 'text-red-500',
+                gray: 'text-gray-500'
+            }[color] || 'text-gray-500';
+            dom.statusTip.className = `mt-4 text-center text-sm ${colorClass}`;
+
+            // 3秒后恢复默认提示
+            setTimeout(() => {
+                dom.statusTip.textContent = Object.keys(pinyinDict).length ? '可正常输入' : '词典加载中...';
+                dom.statusTip.className = 'mt-4 text-center text-sm text-gray-500';
+            }, 3000);
+        }
+
+        // 13. 修复全角/半角切换逻辑（修复BUG）
+        function toggleFullHalfMode() {
+            isFullWidthMode = !isFullWidthMode;
+
+            // 修复：确保按钮状态和功能完全同步
+            if (isFullWidthMode) {
+                dom.toggleText.textContent = '全角';
+                dom.fullHalfToggle.classList.remove('bg-toggleOff');
+                dom.fullHalfToggle.classList.add('bg-toggleOn');
+                showTip('已切换为全角模式（符号自动转换为全角）', 'green');
+            } else {
+                dom.toggleText.textContent = '半角';
+                dom.fullHalfToggle.classList.remove('bg-toggleOn');
+                dom.fullHalfToggle.classList.add('bg-toggleOff');
+                showTip('已切换为半角模式（符号保持原样）', 'green');
+            }
+
+            // 重新渲染当前拼音输入，预览全角/半角效果
+            if (dom.pinyinInput.value) {
+                renderCandidates(dom.pinyinInput.value);
+            }
+
+            // 聚焦输入框，保持操作连贯性
+            dom.pinyinInput.focus();
+        }
+
+        // 14. 初始化特殊字符面板
+        function initSpecialCharPanel() {
+            if (!specialChars || Object.keys(specialChars).length === 0) return;
+
+            // 清空原有标签
+            dom.charCategoryTabs.innerHTML = '';
+
+            // 生成分类标签
+            Object.keys(specialChars).forEach((category) => {
+                const tab = document.createElement('div');
+                // 初始选中第一个分类
+                const isActive = category === currentCharCategory;
+                tab.className = `char-category-tab ${isActive ? 'bg-button text-white' : 'bg-gray-200 hover:bg-gray-300'}`;
+                tab.textContent = category;
+                tab.dataset.category = category;
+
+                // 绑定分类切换事件
+                tab.addEventListener('click', () => {
+                    // 更新所有标签样式
+                    document.querySelectorAll('.char-category-tab').forEach(t => {
+                        t.classList.remove('bg-button', 'text-white');
+                        t.classList.add('bg-gray-200', 'hover:bg-gray-300');
+                    });
+                    // 高亮当前标签
+                    tab.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+                    tab.classList.add('bg-button', 'text-white');
+                    // 更新当前分类并渲染字符
+                    currentCharCategory = category;
+                    renderSpecialChars(category);
+                });
+
+                dom.charCategoryTabs.appendChild(tab);
+            });
+
+            // 初始渲染第一个分类的字符
+            renderSpecialChars(currentCharCategory);
+        }
+
+        // 15. 渲染指定分类的特殊字符
+        function renderSpecialChars(category) {
+            dom.charDisplayArea.innerHTML = '';
+            const chars = specialChars[category] || [];
+
+            if (chars.length === 0) {
+                dom.charDisplayArea.innerHTML = '<div class="col-span-8 text-center text-gray-500 py-4">该分类暂无字符</div>';
+                return;
+            }
+
+            chars.forEach((char) => {
+                const charItem = document.createElement('div');
+                charItem.className = 'char-item';
+                charItem.textContent = char;
+                charItem.title = `插入「${char}」`;
+                // 绑定插入事件
+                charItem.addEventListener('click', () => {
+                    dom.outputArea.value += char;
+                    dom.outputArea.focus();
+                });
+                dom.charDisplayArea.appendChild(charItem);
+            });
+        }
+
+        // 16. 打开特殊字符面板（修复弹窗逻辑）
+        function openSpecialCharPanel() {
+            // 确保面板已初始化
+            if (!specialChars || Object.keys(specialChars).length === 0) {
+                showTip('特殊字符词典加载失败，无法打开面板', 'red');
+                return;
+            }
+
+            // 修复：确保模态框完全显示
+            dom.specialCharModal.classList.remove('hidden');
+            dom.modalOverlay.classList.remove('hidden');
+
+            // 重新渲染当前分类（确保最新）
+            renderSpecialChars(currentCharCategory);
+
+            // 聚焦到模态框以便键盘操作
+            dom.specialCharModal.focus();
+        }
+
+        // 17. 关闭特殊字符面板
+        function closeSpecialCharPanel() {
+            dom.specialCharModal.classList.add('hidden');
+            dom.modalOverlay.classList.add('hidden');
+            dom.pinyinInput.focus();
+        }
+
+        // 18. 绑定所有事件（核心修复：空格键判断逻辑）
+        function bindEvents() {
+            // 拼音输入框输入事件
+            dom.pinyinInput.addEventListener('input', (e) => {
+                renderCandidates(e.target.value);
+            });
+
+            // 全局键盘事件
+            document.addEventListener('keydown', (e) => {
+                // ESC键关闭特殊字符面板
+                if (e.key === 'Escape' && !dom.specialCharModal.classList.contains('hidden')) {
+                    closeSpecialCharPanel();
+                    e.preventDefault();
+                    return;
+                }
+
+                // 数字键1-9选择候选词（增加输入框非空判断）
+                if (e.key >= 1 && e.key <= 9) {
+                    // 关键修复：输入框为空时不触发数字选择
+                    if (dom.pinyinInput.value === '') return;
+                    const start = currentPage * pageSize;
+                    const index = start + (parseInt(e.key) - 1);
+                    if (candidateWords.length > 0 && index < candidateWords.length) {
+                        e.preventDefault();
+                        selectCandidate(index);
+                    }
+                }
+                // 空格键选择第一个候选词（核心修复：增加输入框非空判断）
+                else if (e.key === ' ') {
+                    // 只有输入框有内容且有候选词时，才触发候选词选择
+                    if (candidateWords.length > 0 && dom.pinyinInput.value !== '') {
+                        e.preventDefault();
+                        // 选择第一个候选词
+                        selectCandidate(currentPage * pageSize);
+                    }
+                    // 否则保留默认行为（输入空格）
+                }
+                // 回车键：输入拼音框内容（保留所有空格，纯空格也可提交）
+                else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const inputText = dom.pinyinInput.value; // 移除trim()，保留所有空格
+                    if (inputText !== '') { // 改为严格判空，纯空格也执行
+                        const convertedText = convertToFullWidth(inputText);
+                        dom.outputArea.value += convertedText;
+                        // 清空候选词数组
+                        candidateWords = [];
+                        currentPage = 0;
+                        updatePageInfo();
+                        dom.candidateList.innerHTML = '';
+                        dom.pinyinInput.value = '';
+                        dom.candidateArea.classList.add('hidden');
+                    }
+                    dom.pinyinInput.focus();
+                }
+                // 翻页键（增加输入框非空判断）
+                else if (e.key === 'PageUp' || e.key === '[' || e.key === '-') {
+                    if (dom.pinyinInput.value !== '' && candidateWords.length > pageSize) {
+                        e.preventDefault();
+                        changePage(-1);
+                    }
+                } else if (e.key === 'PageDown' || e.key === ']' || e.key === '=') {
+                    if (dom.pinyinInput.value !== '' && candidateWords.length > pageSize) {
+                        e.preventDefault();
+                        changePage(1);
+                    }
+                }
+                // 退格键
+                else if (e.key === 'Backspace' && dom.pinyinInput.value === '') {
+                    deleteLastChar();
+                }
+            });
+
+            // 翻页按钮
+            dom.prevPageBtn.addEventListener('click', () => changePage(-1));
+            dom.nextPageBtn.addEventListener('click', () => changePage(1));
+
+            // 功能按钮
+            dom.copyBtn.addEventListener('click', copyToClipboard);
+            dom.searchBtn.addEventListener('click', searchInBaidu);
+            dom.clearBtn.addEventListener('click', clearAll);
+            dom.deleteBtn.addEventListener('click', deleteLastChar);
+
+            // 全角/半角切换
+            dom.fullHalfToggle.addEventListener('click', toggleFullHalfMode);
+
+            // 特殊字符面板事件
+            dom.specialCharBtn.addEventListener('click', openSpecialCharPanel);
+            dom.closeSpecialCharBtn.addEventListener('click', closeSpecialCharPanel);
+            dom.modalOverlay.addEventListener('click', closeSpecialCharPanel);
+
+            // 页面加载完成后聚焦输入框
+            window.addEventListener('load', () => {
+                dom.pinyinInput.focus();
+            });
+        }
+
+        // 初始化程序
+        function init() {
+            bindEvents();   // 绑定所有事件
+            loadAllDicts(); // 加载所有词典
+        }
+
+        // 启动程序
+        init();
+    </script>
+</body>
+</html>
