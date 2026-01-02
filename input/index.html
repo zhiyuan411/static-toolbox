@@ -203,11 +203,118 @@
                         <li>拼音输入自动转为小写，无需区分大小写</li>
                         <li>候选词最多每页显示9个，支持多页翻查</li>
                         <li>无匹配拼音时会提示"无匹配字词"</li>
-                        <li>所有操作均在本地完成，无数据上传</li>
                         <li>全角模式下，输入的符号自动转为中文全角符号</li>
+                        <li>所有操作均在本地完成，无数据上传</li>
                     </ul>
                 </div>
             </div>
+        </div>
+    </div>
+
+<!-- 镜像源链接卡片区域 -->
+    <div class="w-full max-w-5xl mt-12 mb-8 px-4">
+        <div class="text-center mb-6">
+            <h2 class="text-xl font-bold text-gray-800">镜像源链接</h2>
+            <p class="text-gray-500 mt-1">常用软件包和镜像站链接</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Ubuntu 字体包 -->
+            <a href="http://archive.ubuntu.com/ubuntu/pool/main/f/fonts-wqy-microhei/" 
+               target="_blank" 
+               class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-font text-orange-500 text-xl mr-3"></i>
+                    <h3 class="font-semibold text-gray-800">Ubuntu 字体包</h3>
+                </div>
+                <p class="text-sm text-gray-600">WQY-MicroHei 中文字体包，适用于 Ubuntu 系统</p>
+            </a>
+            
+            <!-- Debian Firefox -->
+            <a href="https://deb.debian.org/debian/pool/main/f/firefox/" 
+               target="_blank" 
+               class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-globe text-red-500 text-xl mr-3"></i>
+                    <h3 class="font-semibold text-gray-800">Debian Firefox</h3>
+                </div>
+                <p class="text-sm text-gray-600">Debian 官方仓库中的 Firefox 浏览器软件包</p>
+            </a>
+            
+            <!-- Fedora 字体包 -->
+            <a href="https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Everything/x86_64/os/Packages/w/" 
+               target="_blank" 
+               class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-font text-blue-500 text-xl mr-3"></i>
+                    <h3 class="font-semibold text-gray-800">Fedora 字体包</h3>
+                </div>
+                <p class="text-sm text-gray-600">Fedora 43 系统中的 WQY-MicroHei 中文字体包</p>
+            </a>
+            
+            <!-- Rocky Linux Firefox -->
+            <a href="https://dl.rockylinux.org/pub/rocky/10.1/AppStream/x86_64/os/Packages/f/" 
+               target="_blank" 
+               class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-globe text-green-600 text-xl mr-3"></i>
+                    <h3 class="font-semibold text-gray-800">Rocky Linux Firefox</h3>
+                </div>
+                <p class="text-sm text-gray-600">Rocky Linux 10.1 中的 Firefox 浏览器软件包</p>
+            </a>
+        </div>
+        
+        <div class="mt-8">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4 text-center">国内镜像站</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- 清华大学镜像站 -->
+                <a href="https://mirrors.tuna.tsinghua.edu.cn/" 
+                   target="_blank" 
+                   class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-graduation-cap text-purple-600 text-xl mr-3"></i>
+                        <h3 class="font-semibold text-gray-800">清华大学镜像站</h3>
+                    </div>
+                    <p class="text-sm text-gray-600">提供各种开源软件、Linux 发行版的镜像</p>
+                </a>
+                
+                <!-- 中国科学技术大学镜像站 -->
+                <a href="https://mirrors.ustc.edu.cn/" 
+                   target="_blank" 
+                   class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-university text-red-600 text-xl mr-3"></i>
+                        <h3 class="font-semibold text-gray-800">中科大镜像站</h3>
+                    </div>
+                    <p class="text-sm text-gray-600">中国科学技术大学的开源软件镜像站</p>
+                </a>
+                
+                <!-- 腾讯云镜像站 -->
+                <a href="https://mirrors.cloud.tencent.com/" 
+                   target="_blank" 
+                   class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-cloud text-blue-500 text-xl mr-3"></i>
+                        <h3 class="font-semibold text-gray-800">腾讯云镜像站</h3>
+                    </div>
+                    <p class="text-sm text-gray-600">腾讯云提供的开源软件镜像服务</p>
+                </a>
+                
+                <!-- 阿里云镜像站 -->
+                <a href="https://developer.aliyun.com/mirror/" 
+                   target="_blank" 
+                   class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow duration-200 border border-gray-200">
+                    <div class="flex items-center mb-3">
+                        <i class="fab fa-alipay text-orange-500 text-xl mr-3"></i>
+                        <h3 class="font-semibold text-gray-800">阿里云镜像站</h3>
+                    </div>
+                    <p class="text-sm text-gray-600">阿里云开发者社区的镜像服务</p>
+                </a>
+            </div>
+        </div>
+        
+        <div class="mt-6 text-center text-sm text-gray-500">
+            <p>点击以上链接可快速访问相应的软件包仓库或镜像站</p>
         </div>
     </div>
 
@@ -611,6 +718,7 @@
                 .then(() => showTip('复制成功！', 'green'))
                 .catch(() => {
                     // 降级方案
+                    dom.outputArea.focus();
                     dom.outputArea.select();
                     document.execCommand('copy');
                     showTip('复制成功！', 'green');
