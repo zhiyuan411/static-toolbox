@@ -75,6 +75,9 @@
     <div class="lg:w-1/4 bg-white rounded-lg shadow-card p-4 flex flex-col">
       <div class="mb-4">
         <h2 class="text-lg font-semibold text-gray-800 mb-2">文件列表</h2>
+        <button id="clear-files" class="w-full mb-3 py-1.5 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+          <i class="fa fa-trash mr-1"></i> 清空全部
+        </button>
         <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary transition-all-300 cursor-pointer" id="drop-area">
           <i class="fa fa-cloud-upload text-3xl text-gray-400 mb-2"></i>
           <p class="text-sm text-gray-500">点击或拖拽OFD文件到此处</p>
@@ -164,8 +167,9 @@
       const zoomOut = document.getElementById('zoom-out');
       const zoomLevel = document.getElementById('zoom-level');
       const downloadBtn = document.getElementById('download');
-      const printBtn = document.getElementById('print-btn'); // 👈 新增
+      const printBtn = document.getElementById('print-btn');
       const themeToggle = document.getElementById('theme-toggle');
+      const clearFilesBtn = document.getElementById('clear-files'); // 👈 新增
 
       // 存储已上传的文件
       let uploadedFiles = [];
@@ -255,12 +259,15 @@
           }
         });
 
-        // 打印按钮 👈 新增
+        // 打印按钮
         printBtn.addEventListener('click', () => {
           if (currentFileIndex >= 0) {
             printOfdDocument();
           }
         });
+
+        // 清空按钮 👈 新增
+        clearFilesBtn.addEventListener('click', clearAllFiles);
 
         // 主题切换
         themeToggle.addEventListener('click', toggleTheme);
@@ -309,36 +316,40 @@
       function updateFileList() {
         if (uploadedFiles.length === 0) {
           fileList.innerHTML = '<li class="text-gray-500 text-center italic py-4">暂无文件</li>';
-          return;
+        } else {
+          fileList.innerHTML = '';
+          uploadedFiles.forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = `p-2 rounded flex items-center justify-between cursor-pointer transition-all-300 ${index === currentFileIndex ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`;
+            li.innerHTML = `
+              <div class="flex items-center truncate">
+                <i class="fa fa-file-text-o mr-2"></i>
+                <span class="truncate">${file.name}</span>
+              </div>
+              <button class="text-gray-400 hover:text-red-500 transition-all-300" data-index="${index}">
+                <i class="fa fa-times"></i>
+              </button>
+            `;
+
+            // 点击文件选择预览
+            li.querySelector('.truncate').addEventListener('click', () => {
+              selectFile(index);
+            });
+
+            // 点击删除按钮
+            li.querySelector('button').addEventListener('click', (e) => {
+              e.stopPropagation();
+              deleteFile(index);
+            });
+
+            fileList.appendChild(li);
+          });
         }
 
-        fileList.innerHTML = '';
-        uploadedFiles.forEach((file, index) => {
-          const li = document.createElement('li');
-          li.className = `p-2 rounded flex items-center justify-between cursor-pointer transition-all-300 ${index === currentFileIndex ? 'bg-blue-50 text-primary' : 'hover:bg-gray-50'}`;
-          li.innerHTML = `
-            <div class="flex items-center truncate">
-              <i class="fa fa-file-text-o mr-2"></i>
-              <span class="truncate">${file.name}</span>
-            </div>
-            <button class="text-gray-400 hover:text-red-500 transition-all-300" data-index="${index}">
-              <i class="fa fa-times"></i>
-            </button>
-          `;
-
-          // 点击文件选择预览
-          li.querySelector('.truncate').addEventListener('click', () => {
-            selectFile(index);
-          });
-
-          // 点击删除按钮
-          li.querySelector('button').addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteFile(index);
-          });
-
-          fileList.appendChild(li);
-        });
+        // 控制清空按钮状态 👈 新增
+        if (clearFilesBtn) {
+          clearFilesBtn.disabled = uploadedFiles.length === 0;
+        }
       }
 
       // 选择文件进行预览
@@ -392,6 +403,22 @@
 
         // 更新文件列表
         updateFileList();
+      }
+
+      // 👇 新增：清空所有文件
+      function clearAllFiles() {
+        if (uploadedFiles.length === 0) return;
+
+        uploadedFiles = [];
+        currentFileIndex = -1;
+
+        updateFileList();
+        documentTitle.textContent = '请选择一个文件进行预览';
+        previewContent.innerHTML = '';
+        showNoFileSelected();
+        disablePreviewControls();
+
+        showNotification('已清空所有文件', 'info');
       }
 
       // 解析OFD文件
@@ -501,7 +528,7 @@
         zoomIn.disabled = false;
         zoomOut.disabled = false;
         downloadBtn.disabled = false;
-        printBtn.disabled = false; // 👈 启用打印按钮
+        printBtn.disabled = false;
         updateZoomButtonsState();
       }
 
@@ -510,7 +537,7 @@
         zoomIn.disabled = true;
         zoomOut.disabled = true;
         downloadBtn.disabled = true;
-        printBtn.disabled = true; // 👈 禁用打印按钮
+        printBtn.disabled = true;
       }
 
       // 更新缩放按钮状态
@@ -586,7 +613,7 @@
         }, 3000);
       }
 
-      // 👇 新增：打印 OFD 文档函数
+      // 打印 OFD 文档函数
       function printOfdDocument() {
         const content = previewContent.innerHTML;
         if (!content.trim()) {
