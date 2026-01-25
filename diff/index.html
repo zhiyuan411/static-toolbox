@@ -228,6 +228,8 @@
                         <option value="original" selected>原始内容</option>
                         <option value="remove-indent">去除统一缩进</option>
                         <option value="format-code">代码格式化</option>
+                        <option value="remove-line-comments">去掉行注释</option>
+                        <option value="remove-block-comments">去掉块注释</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                         <i class="fa fa-chevron-down text-xs"></i>
@@ -326,7 +328,7 @@
                     <div class="flex items-center gap-1">
                         <button id="copyOriginal" class="text-gray-500 hover:text-gray-700 transition-colors p-1 ml-2">
                             <i class="fa fa-copy"></i>
-                        </button>                    
+                        </button>
                         <button id="clearOriginal" class="text-gray-500 hover:text-gray-700 transition-colors p-1">
                             <i class="fa fa-times"></i>
                         </button>
@@ -398,7 +400,7 @@
     </main>
 
     <!-- 通知提示 -->
-    <div id="notification" class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2 z-50"></div>
+    <div id="notification" class="fixed top-16 right-4 px-4 py-3 rounded-lg shadow-lg transform translate-y-[-20px] opacity-0 transition-all duration-300 flex items-center gap-2 z-50"></div>
 
 
     <script>
@@ -410,10 +412,21 @@
         // 记录上一次的格式选项，用于检测变化
         let lastFormatOption = 'original';
 
+        // 常见行注释标记
+        const LINE_COMMENT_MARKERS = ['//', '#', '--'];
+        // 常见块注释标记
+        const BLOCK_COMMENT_MARKERS = [
+            { name: 'c-style', start: '/*', end: '*/' },
+            { name: 'html-style', start: '<!--', end: '-->' },
+            { name: 'python-triple-single', start: "'''", end: "'''" },
+            { name: 'python-triple-double', start: '"""', end: '"""' },
+            { name: 'jsp-style', start: '<%--', end: '--%>' }
+        ];
+
         // 显示通知函数
         function showNotification(message, type = 'info') {
             const notification = document.getElementById('notification');
-            notification.className = 'fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2 z-50';
+            notification.className = 'fixed top-16 right-4 px-4 py-3 rounded-lg shadow-lg transform translate-y-0 opacity-100 transition-all duration-300 flex items-center gap-2 z-50';
 
             switch(type) {
                 case 'success':
@@ -431,7 +444,7 @@
 
             setTimeout(() => {
                 notification.classList.remove('translate-y-0', 'opacity-100');
-                notification.classList.add('translate-y-20', 'opacity-0');
+                notification.classList.add('translate-y-[-20px]', 'opacity-0');
             }, 3000);
         }
 
@@ -864,6 +877,150 @@
             }
         }
 
+        // 统计行注释标记出现次数（每行首次出现算1次）
+        function countLineCommentMarkers(text) {
+            const counts = {};
+            // 初始化计数
+            LINE_COMMENT_MARKERS.forEach(marker => counts[marker] = 0);
+            
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                // 遍历标记，找该行首次出现的标记
+                let found = false;
+                for (const marker of LINE_COMMENT_MARKERS) {
+                    const index = line.indexOf(marker);
+                    if (index !== -1) {
+                        counts[marker]++;
+                        found = true;
+                        break; // 只算首次出现的标记
+                    }
+                }
+            });
+            
+            return counts;
+        }
+
+        // 找到出现次数最多的行注释标记
+        function getMostFrequentLineCommentMarker(text1, text2) {
+            // 统计两个文本的标记次数
+            const counts1 = countLineCommentMarkers(text1);
+            const counts2 = countLineCommentMarkers(text2);
+            
+            // 合并计数
+            const combinedCounts = {};
+            LINE_COMMENT_MARKERS.forEach(marker => {
+                combinedCounts[marker] = (counts1[marker] || 0) + (counts2[marker] || 0);
+            });
+            
+            // 找到最多的标记
+            let maxCount = -1;
+            let mostFrequent = null;
+            for (const [marker, count] of Object.entries(combinedCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostFrequent = marker;
+                }
+            }
+            
+            return mostFrequent;
+        }
+
+        // 去掉行注释（修改版：去除注释后为空行则删除整行）
+        function removeLineComments(text, marker) {
+            if (!text || !marker) return text;
+            
+            const lines = text.split('\n');
+            const processedLines = lines.map(line => {
+                const index = line.indexOf(marker);
+                if (index === -1) {
+                    return line; // 没有注释标记，返回原行
+                }
+                // 去掉标记及之后的内容，保留前面的部分（去除末尾空白）
+                const beforeComment = line.substring(0, index).trimEnd();
+                // 关键修改：如果处理后为空/仅空白符，返回空字符串（后续过滤）
+                return beforeComment.trim() === '' ? '' : beforeComment;
+            });
+            // 关键修改：过滤掉空行（处理后为空字符串的行）
+            const filteredLines = processedLines.filter(line => line.trim() !== '');
+            return filteredLines.join('\n');
+        }
+
+        // 统计块注释出现次数
+        function countBlockCommentMarkers(text) {
+            const counts = {};
+            // 初始化计数
+            BLOCK_COMMENT_MARKERS.forEach(marker => counts[marker.name] = 0);
+            
+            let remainingText = text;
+            // 遍历每个块注释标记，统计出现次数
+            BLOCK_COMMENT_MARKERS.forEach(marker => {
+                let count = 0;
+                let pos = 0;
+                while (true) {
+                    const startIndex = remainingText.indexOf(marker.start, pos);
+                    if (startIndex === -1) break;
+                    
+                    const endIndex = remainingText.indexOf(marker.end, startIndex + marker.start.length);
+                    if (endIndex === -1) break;
+                    
+                    count++;
+                    pos = endIndex + marker.end.length;
+                }
+                counts[marker.name] = count;
+            });
+            
+            return counts;
+        }
+
+        // 找到出现次数最多的块注释标记
+        function getMostFrequentBlockCommentMarker(text1, text2) {
+            // 统计两个文本的标记次数
+            const counts1 = countBlockCommentMarkers(text1);
+            const counts2 = countBlockCommentMarkers(text2);
+            
+            // 合并计数
+            const combinedCounts = {};
+            BLOCK_COMMENT_MARKERS.forEach(marker => {
+                combinedCounts[marker.name] = (counts1[marker.name] || 0) + (counts2[marker.name] || 0);
+            });
+            
+            // 找到最多的标记
+            let maxCount = -1;
+            let mostFrequent = null;
+            for (const [name, count] of Object.entries(combinedCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostFrequent = BLOCK_COMMENT_MARKERS.find(m => m.name === name);
+                }
+            }
+            
+            return mostFrequent;
+        }
+
+        // 去掉块注释（仅新增：去除注释后为空行则删除整行，不改动原有核心逻辑）
+        function removeBlockComments(text, marker) {
+            if (!text || !marker) return text;
+            
+            let processedText = text;
+            const { start, end } = marker;
+            
+            // 保留原有核心逻辑：循环查找并移除完整的块注释
+            while (true) {
+                const startIndex = processedText.indexOf(start);
+                if (startIndex === -1) break;
+                
+                const endIndex = processedText.indexOf(end, startIndex + start.length);
+                if (endIndex === -1) break;
+                
+                // 去掉注释部分
+                processedText = processedText.substring(0, startIndex) + processedText.substring(endIndex + end.length);
+            }
+            
+            // 新增逻辑：过滤掉处理后为空行/仅含空白符的行
+            const lines = processedText.split('\n');
+            const filteredLines = lines.filter(line => line.trim() !== '');
+            return filteredLines.join('\n');
+        }
 
         // 初始化工具
         function initTool() {
@@ -945,16 +1102,16 @@
 
                 // 只有当选项发生变化时才处理
                 if (formatChanged) {
-                    if (formatOption === 'remove-indent') {
-                        // 备份原始内容（如果尚未备份）
-                        if (originalContentBackup === null) {
-                            originalContentBackup = originalText.value;
-                            modifiedContentBackup = modifiedText.value;
-                        }
+                    // 【关键修改1】统一备份原始内容：仅在第一次操作时备份（用于后续恢复原始内容）
+                    if (originalContentBackup === null && formatOption !== 'original') {
+                        originalContentBackup = originalText.value;
+                        modifiedContentBackup = modifiedText.value;
+                    }
 
-                        // 去除统一缩进
-                        const newOriginal = removeUniformIndentation(originalContentBackup);
-                        const newModified = removeUniformIndentation(modifiedContentBackup);
+                    if (formatOption === 'remove-indent') {
+                        // 【关键修改2】基于当前文本框内容（上一次操作结果）处理，而非原始备份
+                        const newOriginal = removeUniformIndentation(originalText.value);
+                        const newModified = removeUniformIndentation(modifiedText.value);
 
                         originalText.value = newOriginal;
                         modifiedText.value = newModified;
@@ -963,15 +1120,9 @@
                         computeAndShowDiff();
 
                     } else if (formatOption === 'format-code') {
-                        // 备份原始内容（如果尚未备份）
-                        if (originalContentBackup === null) {
-                            originalContentBackup = originalText.value;
-                            modifiedContentBackup = modifiedText.value;
-                        }
-
-                        // 代码格式化
-                        const newOriginal = formatCode(originalContentBackup);
-                        const newModified = formatCode(modifiedContentBackup);
+                        // 【关键修改2】基于当前文本框内容处理
+                        const newOriginal = formatCode(originalText.value);
+                        const newModified = formatCode(modifiedText.value);
 
                         originalText.value = newOriginal;
                         modifiedText.value = newModified;
@@ -979,10 +1130,45 @@
                         updateCharacterCount();
                         computeAndShowDiff();
 
-                    } else {
-                        // 恢复原始内容
-                        if (originalContentBackup !== null) {
+                    } else if (formatOption === 'remove-line-comments') {
+                        // 【关键修改2】基于当前文本框内容找注释标记
+                        const lineCommentMarker = getMostFrequentLineCommentMarker(originalText.value, modifiedText.value);
+                        if (!lineCommentMarker) {
+                            showNotification('未检测到常见的行注释标记', 'info');
+                            return;
+                        }
 
+                        // 基于当前文本框内容去掉行注释
+                        const newOriginal = removeLineComments(originalText.value, lineCommentMarker);
+                        const newModified = removeLineComments(modifiedText.value, lineCommentMarker);
+
+                        originalText.value = newOriginal;
+                        modifiedText.value = newModified;
+                        showNotification(`已去掉行注释（使用标记: ${lineCommentMarker}）`, 'info');
+                        updateCharacterCount();
+                        computeAndShowDiff();
+
+                    } else if (formatOption === 'remove-block-comments') {
+                        // 【关键修改2】基于当前文本框内容找块注释标记
+                        const blockCommentMarker = getMostFrequentBlockCommentMarker(originalText.value, modifiedText.value);
+                        if (!blockCommentMarker) {
+                            showNotification('未检测到常见的块注释标记', 'info');
+                            return;
+                        }
+
+                        // 基于当前文本框内容去掉块注释
+                        const newOriginal = removeBlockComments(originalText.value, blockCommentMarker);
+                        const newModified = removeBlockComments(modifiedText.value, blockCommentMarker);
+
+                        originalText.value = newOriginal;
+                        modifiedText.value = newModified;
+                        showNotification(`已去掉块注释（使用标记: ${blockCommentMarker.start}...${blockCommentMarker.end}）`, 'info');
+                        updateCharacterCount();
+                        computeAndShowDiff();
+
+                    } else {
+                        // 恢复原始内容（仅"原始内容"选项触发）
+                        if (originalContentBackup !== null) {
                             originalText.value = originalContentBackup;
                             modifiedText.value = modifiedContentBackup;
                             showNotification('已恢复原始内容', 'info');
@@ -1161,7 +1347,7 @@
               } else {
                 fallbackCopyText(text);
               }
-            }            
+            }
 
             document.getElementById('copyOriginal').addEventListener('click', () => {
               copyText(document.getElementById('originalText').value);
