@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF发票合并工具</title>
+    <!-- 保持您的 Tailwind 配置 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <!-- 【严格保持】您指定的 unpkg CDN 配置 -->
+    <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.iife.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        accent: '#10b981',
+                        neutral: '#f3f4f6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto { content-visibility: auto; }
+            .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .transition-all-300 { transition: all 300ms ease-in-out; }
+        }
+    </style>
+    <style>
+        /* Toast notification styles */
+        .toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 9999; pointer-events: none;
+        }
+        .toast {
+            transform: translateX(120%); opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: auto;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast.hide { transform: translateX(120%); opacity: 0; transition: all 0.2s ease-in; }
+
+        /* 【关键修复】CSS 字体兜底策略 */
+        /* 当 PDF 请求 KaiTi/SimSun 但系统未安装时，强制映射到系统已有的微软雅黑或黑体 */
+        /* 这样 PDF.js 就能成功渲染文字，随后被 Canvas 转为图片，实现“视觉转曲” */
+        @font-face {
+            font-family: 'KaiTi';
+            src: local('Microsoft YaHei'), local('SimHei'), local('SimSun'), sans-serif;
+        }
+        @font-face {
+            font-family: 'SimSun';
+            src: local('Microsoft YaHei'), local('SimHei'), local('KaiTi'), sans-serif;
+        }
+        @font-face {
+            font-family: 'FangSong';
+            src: local('Microsoft YaHei'), local('SimHei'), sans-serif;
+        }
+        @font-face {
+            font-family: 'SimHei';
+            src: local('Microsoft YaHei'), local('SimSun'), sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <!-- 页面头部 -->
+    <header class="bg-gradient-to-r from-primary to-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h1 class="text-3xl md:text-4xl font-bold text-shadow">PDF发票合并工具</h1>
+                    <p class="text-blue-100 mt-2">将多张PDF格式的火车票/电子发票合并到Word文档</p>
+                </div>
+                <div class="flex space-x-4">
+                    <button id="helpBtn" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-all-300 flex items-center">
+                        <i class="fa fa-question-circle mr-2"></i> 帮助
+                    </button>
+                    <button id="clearBtn" class="bg-white bg-opacity-20 hover:bg-opacity-300 px-4 py-2 rounded-lg transition-all-300 flex items-center">
+                        <i class="fa fa-trash mr-2"></i> 清空
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 上传区域 -->
+        <section class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div class="flex flex-col items-center justify-center py-12 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary transition-all-300">
+                <div class="text-center">
+                    <i class="fa fa-cloud-upload text-5xl text-gray-400 mb-4"></i>
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-2">上传PDF发票</h2>
+                    <p class="text-gray-600 mb-6">支持多张PDF格式的火车票/电子发票，将自动合并到Word文档</p>
+                    <label for="fileInput" class="bg-primary hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-lg cursor-pointer transition-all-300 inline-flex items-center">
+                        <i class="fa fa-file-pdf-o mr-2"></i> 选择文件
+                    </label>
+                    <input type="file" id="fileInput" class="hidden" accept=".pdf" multiple>
+                    <p class="text-gray-500 text-sm mt-4">或直接拖放文件到此处</p>
+                </div>
+            </div>
+
+            <!-- 上传文件列表 -->
+            <div id="fileList" class="mt-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">已选择的文件</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="fileItems"></div>
+            </div>
+        </section>
+
+        <!-- 操作区域 -->
+        <section class="flex flex-col md:flex-row justify-center gap-4 mb-8">
+            <button id="mergeBtn" class="bg-accent hover:bg-green-600 text-white font-medium px-8 py-4 rounded-lg shadow-md transition-all-300 flex items-center justify-center w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa fa-file-word-o mr-2"></i> 合并到Word
+            </button>
+            <button id="downloadBtn" class="bg-primary hover:bg-blue-600 text-white font-medium px-8 py-4 rounded-lg shadow-md transition-all-300 flex items-center justify-center w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa fa-download mr-2"></i> 下载文档
+            </button>
+        </section>
+
+        <!-- 预览区域 -->
+        <section id="previewSection" class="bg-white rounded-xl shadow-md p-6 mb-8 hidden">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">文件预览</h3>
+            <div id="previewContainer" class="grid grid-cols-1 gap-6"></div>
+        </section>
+    </main>
+
+    <!-- Toast通知容器 -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 bill2word. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300"><i class="fa fa-github text-xl"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300"><i class="fa fa-envelope text-xl"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 帮助模态框 -->
+    <div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">使用帮助</h3>
+                    <button id="closeHelpBtn" class="text-gray-500 hover:text-gray-700"><i class="fa fa-times text-xl"></i></button>
+                </div>
+                <div class="prose max-w-none">
+                    <h4>✨ 如何使用</h4>
+                    <ol>
+                        <li>- 点击「选择文件」按钮或直接拖放PDF发票文件到上传区域</li>
+                        <li>- 系统会自动预览上传的发票文件</li>
+                        <li>- 点击「合并到Word」按钮生成Word文档（包含所有发票的高清图片）</li>
+                        <li>- 点击「下载文档」按钮获取合并后的Word文档(.docx格式)</li>
+                    </ol>
+
+                    <h4>📐 智能布局规则</h4>
+                    <ul>
+                        <li>- 当上传≤2张发票时：每张发票独立显示，图片在上文件名在下</li>
+                        <li>- 当上传＞2张发票时：自动调整为每行2张图片的紧凑布局</li>
+                        <li>- 图片会根据数量自动缩放（多图时为原来的一半大小）</li>
+                        <li>- 文件描述格式统一为：发票1 文件名.pdf</li>
+                        <li>- 多图模式下，同行图片的文件描述用逗号连接</li>
+                    </ul>
+
+                    <h4>⚡ 功能特色</h4>
+                    <ul>
+                        <li>- 智能字体处理：自动解决中文字体显示问题</li>
+                        <li>- 一键清空：随时清空当前上传的所有文件</li>
+                        <li>- 智能命名：下载文件名包含首个发票名+时间戳</li>
+                        <li>- 响应式设计：支持电脑和移动设备使用</li>
+                        <li>- 数据安全：所有处理都在本地完成，文件不上传服务器</li>
+                    </ul>
+
+                    <h4>⚠️ 注意事项</h4>
+                    <ul>
+                        <li>- 仅支持PDF格式的文件</li>
+                        <li>- 建议上传清晰的发票扫描件</li>
+                        <li>- 生成的Word文档为.docx格式，可直接在Word中打开</li>
+                        <li>- 处理大量文件时可能需要一些时间，请耐心等待</li>
+                        <li>- 支持常见的中文字体（楷体、宋体、黑体等）</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="bg-gray-100 p-4 rounded-b-xl flex justify-end">
+                <button id="closeHelpBtn2" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all-300">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let pdfFiles = [];
+        let pdfPreviews = [];
+        let wordDocument = null;
+        let firstFileName = '';
+        let toastCount = 0;
+
+        // ==========================================
+        // 【核心修复】PDF.js 配置优化 (保持 unpkg 源)
+        // ==========================================
+
+        // 1. Worker 源：严格保持您的 unpkg 配置
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+        // 2. 【关键修改】禁用字体面设为 false
+        // 原代码为 true (强制提取路径，导致缺字报错)
+        // 修改为 false (允许浏览器使用 CSS @font-face 或系统字体渲染)
+        pdfjsLib.disableFontFace = false;
+
+        // 3. 【关键修改】允许使用系统字体
+        // 原代码为 false (禁止回退，导致无字体可用)
+        // 修改为 true (当 PDF 内置字体缺失时，使用操作系统中的字体替补)
+        pdfjsLib.useSystemFonts = true;
+
+        // 4. 其他稳定性配置
+        pdfjsLib.verbosity = pdfjsLib.VerbosityLevel.ERRORS;
+        pdfjsLib.disableWorker = false;
+        pdfjsLib.isEvalSupported = false;
+        pdfjsLib.disableRange = true;
+        pdfjsLib.disableStream = true;
+        pdfjsLib.stopAtErrors = false;
+
+        // CMap 配置：严格保持您的 unpkg 配置
+        const CMAP_URL = 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/';
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initFileInput();
+            initDragAndDrop();
+            initEventListeners();
+            updateButtonStates();
+        });
+
+        // 初始化文件输入
+        function initFileInput() {
+            const fileInput = document.getElementById('fileInput');
+            fileInput.addEventListener('change', function(e) {
+                handleFiles(e.target.files);
+            });
+        }
+
+        // 初始化拖放功能
+        function initDragAndDrop() {
+            const dropArea = document.querySelector('.border-dashed');
+
+            dropArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dropArea.classList.add('border-primary');
+                dropArea.classList.add('bg-blue-50');
+            });
+
+            dropArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                dropArea.classList.remove('border-primary');
+                dropArea.classList.remove('bg-blue-50');
+            });
+
+            dropArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dropArea.classList.remove('border-primary');
+                dropArea.classList.remove('bg-blue-50');
+                handleFiles(e.dataTransfer.files);
+            });
+        }
+
+        // 初始化事件监听器
+        function initEventListeners() {
+            document.getElementById('mergeBtn').addEventListener('click', mergeToWord);
+            document.getElementById('downloadBtn').addEventListener('click', downloadWord);
+            document.getElementById('clearBtn').addEventListener('click', clearFiles);
+
+            document.getElementById('helpBtn').addEventListener('click', function() {
+                document.getElementById('helpModal').classList.remove('hidden');
+            });
+
+            const closeHelp = () => document.getElementById('helpModal').classList.add('hidden');
+            document.getElementById('closeHelpBtn').addEventListener('click', closeHelp);
+            document.getElementById('closeHelpBtn2').addEventListener('click', closeHelp);
+        }
+
+        // 处理文件
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            const pdfs = Array.from(files).filter(file => file.type === 'application/pdf');
+            if (pdfs.length === 0) {
+                showToast('请选择PDF格式的文件', 'error');
+                return;
+            }
+
+            // 保存第一个文件名用于下载命名
+            if (pdfFiles.length === 0 && pdfs.length > 0) {
+                firstFileName = pdfs[0].name.replace(/\.pdf$/i, '');
+            }
+
+            pdfFiles = [...pdfFiles, ...pdfs];
+            updateFileList();
+            previewFiles(pdfs);
+        }
+
+        // 更新文件列表
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            const fileItems = document.getElementById('fileItems');
+
+            if (pdfFiles.length > 0) {
+                fileList.classList.remove('hidden');
+                fileItems.innerHTML = '';
+                pdfFiles.forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'bg-gray-50 rounded-lg p-4 flex items-center justify-between border border-gray-200';
+                    fileItem.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fa fa-file-pdf-o text-red-500 text-xl mr-3"></i>
+                            <div>
+                                <p class="font-medium text-gray-800 truncate max-w-xs">${file.name}</p>
+                                <p class="text-sm text-gray-500">${formatFileSize(file.size)}</p>
+                            </div>
+                        </div>
+                        <button class="text-red-500 hover:text-red-700" onclick="removeFile(${index})">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    `;
+                    fileItems.appendChild(fileItem);
+                });
+            } else {
+                fileList.classList.add('hidden');
+            }
+            updateButtonStates();
+        }
+
+        // 辅助函数：读取文件
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // 预览文件
+        async function previewFiles(files) {
+            const previewContainer = document.getElementById('previewContainer');
+            const previewSection = document.getElementById('previewSection');
+
+            // 置灰合并按钮
+            const mergeBtn = document.getElementById('mergeBtn');
+            const originalMergeBtnState = mergeBtn.disabled;
+            mergeBtn.disabled = true;
+
+            showToast('正在处理PDF文件，请稍候...', 'info', 2000);
+
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const index = pdfFiles.length - files.length + i;
+
+                    const arrayBuffer = await readFileAsArrayBuffer(file);
+
+                    // 【关键】使用优化后的配置加载 PDF (保持 unpkg CMap)
+                    const pdf = await pdfjsLib.getDocument({
+                        data: arrayBuffer,
+                        cMapUrl: CMAP_URL,
+                        cMapPacked: true,
+                        // 允许字体回退，确保文字能渲染出来
+                        disableFontFace: false,
+                        useSystemFonts: true,
+                        disableRange: true,
+                        disableStream: true,
+                        stopAtErrors: false,
+                        isEvalSupported: false
+                    }).promise;
+
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 1.5 });
+
+                    const canvas = document.createElement('canvas');
+                    canvas.className = 'pdf-canvas';
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    context.imageSmoothingEnabled = true;
+                    context.imageSmoothingQuality = 'high';
+
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+
+                    await page.render(renderContext).promise;
+
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    img.className = 'rounded-lg shadow-md max-w-full h-auto';
+                    img.style.maxHeight = '300px';
+                    img.alt = `PDF预览: ${file.name}`;
+
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <div class="relative mb-2">
+                                ${img.outerHTML}
+                                <button class="absolute top-2 right-2 bg-white bg-opacity-80 rounded-full p-1 text-red-500 hover:text-red-700 shadow-sm" onclick="removeFile(${index})">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                            <p class="text-sm text-gray-600 text-center truncate w-full">${file.name}</p>
+                        </div>
+                    `;
+
+                    previewContainer.appendChild(previewItem);
+                    previewSection.classList.remove('hidden');
+
+                    pdfPreviews.push({ name: file.name, image: img.src, file: file });
+                }
+
+                // 预览完成，启用合并按钮，清空已合并文档并置灰下载按钮
+                mergeBtn.disabled = false;
+                wordDocument = null;
+                updateButtonStates();
+
+            } catch (error) {
+                console.error('预览文件失败:', error);
+                showToast(`预览文件失败: ${error.message}`, 'error');
+                // 发生错误时恢复合并按钮原始状态
+                mergeBtn.disabled = originalMergeBtnState;
+            }
+        }
+
+        // 移除文件
+        function removeFile(index) {
+            // 删除对应的数据
+            pdfFiles.splice(index, 1);
+            pdfPreviews.splice(index, 1);
+
+            // 更新文件列表显示
+            updateFileList();
+
+            // 特别处理：当删除最后一个文件时，彻底清空预览数据
+            if (pdfPreviews.length === 0) {
+                // 清空预览容器内的所有内容
+                const previewContainer = document.getElementById('previewContainer');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                }
+
+                // 隐藏预览区域
+                const previewSection = document.getElementById('previewSection');
+                if (previewSection) {
+                    previewSection.classList.add('hidden');
+                }
+
+                // 重置文件输入框
+                document.getElementById('fileInput').value = '';
+
+                // 如果已生成文档，保持文档不变；如果没有文件，则禁用合并按钮
+                if (pdfFiles.length === 0) {
+                    const mergeBtn = document.getElementById('mergeBtn');
+                    if (mergeBtn) {
+                        mergeBtn.disabled = true;
+                    }
+                }
+            } else {
+                // 如果还有文件，更新预览显示
+                updatePreviews();
+            }
+
+            // 更新按钮状态
+            updateButtonStates();
+        }
+
+        // 更新预览
+        function updatePreviews() {
+            const previewContainer = document.getElementById('previewContainer');
+            const previewSection = document.getElementById('previewSection');
+
+            if (pdfPreviews.length > 0) {
+                previewContainer.innerHTML = '';
+                pdfPreviews.forEach((preview, index) => {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.innerHTML = `
+                        <div class="flex flex-col items-center">
+                            <div class="relative mb-2">
+                                <img src="${preview.image}" class="rounded-lg shadow-md max-w-full h-auto" style="max-height: 300px;">
+                                <button class="absolute top-2 right-2 bg-white bg-opacity-80 rounded-full p-1 text-red-500 hover:text-red-700 shadow-sm" onclick="removeFile(${index})">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </div>
+                            <p class="text-sm text-gray-600 text-center truncate w-full">${preview.name}</p>
+                        </div>
+                    `;
+                    previewContainer.appendChild(previewItem);
+                });
+            } else {
+                previewSection.classList.add('hidden');
+            }
+        }
+
+        // 清空文件
+        function clearFiles() {
+            pdfFiles = [];
+            pdfPreviews = [];
+            // 不清空 wordDocument，保持已生成的文档
+            updateFileList();
+            updatePreviews();
+            updateButtonStates();
+            // 重置文件输入框
+            document.getElementById('fileInput').value = '';
+            // 清空预览容器，确保下次上传不会显示旧预览
+            const previewContainer = document.getElementById('previewContainer');
+            if (previewContainer) {
+                previewContainer.innerHTML = '';
+            }
+            const previewSection = document.getElementById('previewSection');
+            if (previewSection) {
+                previewSection.classList.add('hidden');
+            }
+        }
+
+        // 合并到Word
+        async function mergeToWord() {
+            if (pdfFiles.length === 0) {
+                showToast('请先上传PDF文件', 'warning');
+                return;
+            }
+
+            const mergeBtn = document.getElementById('mergeBtn');
+            const originalText = mergeBtn.innerHTML;
+            mergeBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 处理中...';
+            mergeBtn.disabled = true;
+
+            try {
+                const { Document, Paragraph, TextRun, ImageRun, AlignmentType } = docx;
+                const sections = [];
+                let currentRowImages = [];
+                let currentRowDescs = [];
+
+                for (let i = 0; i < pdfFiles.length; i++) {
+                    const file = pdfFiles[i];
+
+                    const imageData = await (async () => {
+                        const arrayBuffer = await readFileAsArrayBuffer(file);
+
+                        // 【关键】使用与预览相同的优化配置 (保持 unpkg CMap)
+                        const pdf = await pdfjsLib.getDocument({
+                            data: arrayBuffer,
+                            cMapUrl: CMAP_URL,
+                            cMapPacked: true,
+                            disableFontFace: false, // 允许字体回退
+                            useSystemFonts: true,   // 允许系统字体
+                            disableRange: true,
+                            disableStream: true,
+                            stopAtErrors: false,
+                            isEvalSupported: false
+                        }).promise;
+
+                        const page = await pdf.getPage(1);
+                        const viewport = page.getViewport({ scale: 2.0 });
+
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        context.imageSmoothingEnabled = true;
+                        context.imageSmoothingQuality = 'high';
+
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+
+                        const imageDataUrl = canvas.toDataURL('image/png');
+                        return imageDataUrl.split(',')[1];
+                    })();
+
+                    // 根据图片总数决定布局方式
+                    const isMultipleImages = pdfFiles.length > 2;
+                    const imageSize = isMultipleImages ?
+                        { width: 300, height: 200 } :  // 缩小为原来的一半
+                        { width: 600, height: 400 };   // 保持原尺寸
+
+                    // 创建图片段落
+                    const imageRun = new ImageRun({
+                        data: imageData,
+                        transformation: imageSize
+                    });
+
+                    // 单图模式：图片在上，文件描述在下
+                    if (!isMultipleImages) {
+                        const imageParagraph = new Paragraph({
+                            children: [imageRun],
+                            alignment: AlignmentType.CENTER,
+                            spacing: { after: 50 }
+                        });
+
+                        const descParagraph = new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: `发票${i + 1} ${file.name}`,
+                                    size: 24
+                                })
+                            ],
+                            alignment: AlignmentType.CENTER,
+                            spacing: { after: 200 }
+                        });
+
+                        sections.push(imageParagraph);
+                        sections.push(descParagraph);
+                    }
+                    // 多图模式：每行两个图片，下方显示对应的文件描述
+                    else {
+                        // 收集每行的图片和描述
+                        if (i % 2 === 0) {
+                            // 第一张图片
+                            currentRowImages = [imageRun];
+                            currentRowDescs = [`发票${i + 1} ${file.name}`];
+                        } else {
+                            // 第二张图片
+                            currentRowImages.push(imageRun);
+                            currentRowDescs.push(`发票${i + 1} ${file.name}`);
+                        }
+
+                        // 每两图或最后一图时输出整行
+                        if (i % 2 === 1 || i === pdfFiles.length - 1) {
+                            // 图片行
+                            const imageParagraph = new Paragraph({
+                                children: currentRowImages,
+                                alignment: AlignmentType.CENTER,
+                                spacing: { after: 50 }
+                            });
+
+                            // 描述行
+                            const descText = currentRowDescs.join('，');
+                            const descParagraph = new Paragraph({
+                                children: [
+                                    new TextRun({
+                                        text: descText,
+                                        size: 20
+                                    })
+                                ],
+                                alignment: AlignmentType.CENTER,
+                                spacing: { after: 200 }
+                            });
+
+                            sections.push(imageParagraph);
+                            sections.push(descParagraph);
+                        }
+                    }
+                }
+
+                const doc = new Document({
+                    sections: [{ properties: {}, children: sections }]
+                });
+
+                const buffer = await docx.Packer.toBlob(doc);
+                wordDocument = buffer;
+
+                showToast('Word文档生成成功！点击"下载文档"按钮保存文件。', 'success');
+
+                // 生成成功后清空文件和预览内容，但保留文档
+                pdfFiles = [];
+                pdfPreviews = [];
+                updateFileList();
+                updatePreviews();
+                updateButtonStates();
+                // 重置文件输入框
+                document.getElementById('fileInput').value = '';
+                // 清空预览容器，确保下次上传不会显示旧预览
+                const previewContainer = document.getElementById('previewContainer');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '';
+                }
+                const previewSection = document.getElementById('previewSection');
+                if (previewSection) {
+                    previewSection.classList.add('hidden');
+                }
+
+            } catch (error) {
+                console.error('生成Word文档失败:', error);
+                showToast('生成Word文档失败，请重试', 'error');
+            } finally {
+                mergeBtn.innerHTML = originalText;
+                mergeBtn.disabled = false;
+                updateButtonStates();
+            }
+        }
+
+        // 下载文档
+        function downloadWord() {
+            if (!wordDocument) {
+                showToast('请先点击「合并到Word」按钮生成文档', 'warning');
+                return;
+            }
+            const url = URL.createObjectURL(wordDocument);
+            const a = document.createElement('a');
+            a.href = url;
+            // 使用保存的第一个PDF文件名（不含扩展名）+"等发票合并"+精确到秒的时间+.docx
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19).replace('T', '_');
+            const downloadName = firstFileName || '发票合并';
+            a.download = `${downloadName}等发票合并${timestamp}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 更新按钮状态
+        function updateButtonStates() {
+            const mergeBtn = document.getElementById('mergeBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            mergeBtn.disabled = pdfFiles.length === 0;
+            downloadBtn.disabled = !wordDocument;
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Toast通知
+        function showToast(message, type = 'info', duration = 3000) {
+            const toastContainer = document.getElementById('toastContainer');
+            if (!toastContainer) return;
+
+            const toastId = `toast-${++toastCount}`;
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = `toast mb-4 p-4 rounded-lg shadow-lg max-w-sm flex items-start ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                type === 'warning' ? 'bg-yellow-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+
+            toast.innerHTML = `
+                <div class="flex-1"><p class="font-medium">${message}</p></div>
+                <button onclick="hideToast('${toastId}')" class="ml-2 text-white hover:text-gray-200">
+                    <i class="fa fa-times"></i>
+                </button>
+            `;
+
+            toastContainer.appendChild(toast);
+            toast.offsetHeight;
+            requestAnimationFrame(() => toast.classList.add('show'));
+
+            if (duration > 0) setTimeout(() => hideToast(toastId), duration);
+        }
+
+        function hideToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }
+    </script>
+</body>
+</html>
