@@ -20,6 +20,8 @@
 !timestamp/*
 !ip
 !ip/*
+!rain
+!rain/*
 !fontawesome
 !fontawesome/*
 !md

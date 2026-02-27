@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CH">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>听雨之境</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* 播放/暂停提示样式 */
+        #playPauseHint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: sans-serif;
+            font-size: 14px;
+            z-index: 10;
+            opacity: 0.8;
+            transition: opacity 0.5s ease;
+            pointer-events: none; /* 确保提示不影响点击交互 */
+        }
+
+        audio {
+            display: none;
+        }
+    </style>
+    <link rel="stylesheet" href="./raindrop.css">
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <!-- <div id="playPauseHint">单击切换播放/暂停 | 双击进入/退出全屏</div> -->
+
+    <audio id="rainAudio" loop preload="metadata">
+        <source src="./rain.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script src="./raindrop.js"></script>
+    <script>
+        const canvas = document.querySelector("#canvas");
+        const playPauseHint = document.getElementById('playPauseHint');
+        let clickTimer = null; // 用于延迟处理单击事件的定时器
+        let hintHideTimer = null; // 用于隐藏提示的定时器
+
+        const setCanvasSize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+        setCanvasSize();
+
+        window.addEventListener('resize', () => {
+            setCanvasSize();
+            raindropFx.resize(canvas.width, canvas.height);
+        });
+
+        const raindropFx = new RaindropFX({
+            canvas: canvas,
+            background: "./woods.jpeg",
+        });
+
+        // 显示提示信息并在3秒后自动隐藏
+        function showHint(text) {
+            // 清除之前的隐藏定时器
+            if (hintHideTimer) clearTimeout(hintHideTimer);
+
+            // 更新文本并显示
+            playPauseHint.textContent = text;
+            playPauseHint.style.display = "block";
+            playPauseHint.style.opacity = "0.8";
+
+            // 3秒后自动隐藏
+            hintHideTimer = setTimeout(() => {
+                playPauseHint.style.opacity = "0";
+                setTimeout(() => {
+                    playPauseHint.style.display = "none";
+                }, 500);
+            }, 3000);
+        }
+
+        // 全屏控制
+        const toggleFullscreen = () => {
+            if (!document.fullscreenEnabled) return;
+
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err =>
+                    console.error(`退出全屏失败: ${err.message}`));
+                // showHint("双击进入全屏");
+            } else {
+                document.documentElement.requestFullscreen().catch(err =>
+                    console.error(`进入全屏失败: ${err.message}`));
+                // showHint("双击退出全屏");
+            }
+        };
+
+        // 播放/暂停切换
+        function togglePlayPause() {
+            const audio = document.getElementById('rainAudio');
+            if (audio.paused) {
+                audio.play();
+                // showHint("正在播放 - 单击暂停");
+            } else {
+                audio.pause();
+                // showHint("已暂停 - 单击播放");
+            }
+        }
+
+        // 单击事件处理（延迟执行，等待双击判断）
+        document.addEventListener('click', () => {
+            // 清除之前的定时器（如果有）
+            if (clickTimer) clearTimeout(clickTimer);
+
+            // 延迟200ms执行，给双击事件留时间触发
+            clickTimer = setTimeout(() => {
+                togglePlayPause();
+            }, 200); // 200ms是区分单击和双击的常用阈值
+        });
+
+        // 双击事件处理（清除单击定时器，避免执行单击逻辑）
+        document.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            clearTimeout(clickTimer); // 取消单击处理
+            toggleFullscreen(); // 执行双击逻辑
+        });
+
+        // 音频自动播放处理
+        const audio = document.getElementById('rainAudio');
+        // 音频播放函数
+        const playAudio = async () => {
+
+            try {
+                // 尝试自动播放音频
+                await audio.play();
+                // showHint("正在播放 - 单击暂停");
+            } catch (error) {
+                // 使用用户点击作为保底
+                // showHint("点击页面播放雨声");                    
+            }
+        };
+
+        raindropFx.start();
+        playAudio();
+
+        // 初始提示3秒后隐藏
+        // showHint("单击切换播放/暂停 | 双击进入/退出全屏");
+    </script>
+</body>
+</html>
