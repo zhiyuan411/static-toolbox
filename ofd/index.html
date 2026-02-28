@@ -7,9 +7,9 @@
   <!-- Tailwind CSS v3 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Font Awesome -->
-  <link href="https://fastly.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <!-- OFD.js - 使用用户提供的示例中的bundle文件 -->
-  <script src="ofd.bundle-v3.js"></script>
+  <script src="./ofd.umd.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -146,7 +146,7 @@
   <!-- 底部信息 -->
   <footer class="bg-white shadow-sm mt-auto">
     <div class="container mx-auto px-4 py-4 text-center text-sm text-gray-500">
-      <p>© 2025 OFD文件查看器 | 使用 <a href="https://github.com/DLTech21/ofd.js" target="_blank" class="text-primary hover:underline">ofd.js</a> 构建</p>
+      <p>© 2025 OFD文件查看器 | 使用 <a href="https://github.com/zhiyuan411/ofd.js-free" target="_blank" class="text-primary hover:underline">ofd.js</a> 构建</p>
     </div>
   </footer>
 
@@ -445,12 +445,18 @@
             // 解析OFD文件
             window.ofd.parseOfdDocument({
               ofd: arrayBuffer,
-              success() {
+              success(parsedDocs) {
                 try {
-                  console.log('✅ 解析成功，开始渲染...');
+                  console.log('✅ 解析成功，开始渲染...', parsedDocs);
+                  
+                  // 获取第一个文档对象
+                  const ofdDoc = parsedDocs[0];
+                  if (!ofdDoc || !ofdDoc.pages) {
+                    throw new Error('解析的文档对象无效');
+                  }
 
                   // 渲染文档0的所有页，宽度为800px
-                  const divs = window.ofd.renderOfd(0, 800);
+                  const divs = window.ofd.renderOfd(800, ofdDoc);
 
                   if (!divs || divs.length === 0) {
                     throw new Error('渲染OFD文件失败，未生成任何页面');
