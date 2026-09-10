@@ -10,6 +10,11 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <!-- OFD.js - 使用用户提供的示例中的bundle文件 -->
   <script src="./ofd.umd.min.js"></script>
+  <!--
+    第三方解析器（迅捷 parser_x + parser_helper_x）不在此处静态引入：
+    默认关闭时完全不加载（总计约 4.7MB），勾选开关后才按需注入。
+    wasm 已内嵌为 data URI，故同目录只需 parser_helper_x.js / parser_x.js 两个文件。
+  -->
 
   <script>
     tailwind.config = {
@@ -52,6 +57,251 @@
       }
     }
   </style>
+  <style>
+    /* 第三方阅读器会动态插入一个用于“打开本地文件”的 input，需要隐藏 */
+    input.fileInput { display: none !important; }
+    /* 打印进度弹窗（阅读器内打印用） */
+    #printServiceDialog {
+      border: none; border-radius: 8px; padding: 0;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, .2);
+    }
+    #printServiceDialog::backdrop { background: rgba(0, 0, 0, .3); }
+    /* 第三方渲染出的每一页 */
+    #preview-content .page { box-shadow: 0 1px 4px rgba(0, 0, 0, .15); }
+
+    /* ==================================================================
+       第三方「完整阅读器」（方式 c）界面样式
+       组件本身只提供交互逻辑，样式需宿主补足；下面用到的类名与 DOM 约定
+       均取自组件实现（toolbar / secondaryToolbar / sidebar / errorWrapper
+       以及缩略图、目录树等动态生成节点）。
+       ================================================================== */
+    #ofdv3-root {
+      position: relative; display: flex; flex-direction: column;
+      width: 100%; height: 100%; overflow: hidden;
+      background: #e5e7eb; color: #374151; font-size: 13px;
+    }
+    #ofdv3-root *, #ofdv3-root *::before, #ofdv3-root *::after { box-sizing: border-box; }
+    #ofdv3-root .hidden { display: none !important; }
+    #ofdv3-root [hidden] { display: none !important; }
+
+    /* ---------- 通用按钮 / 图标 ---------- */
+    #ofdv3-root .ofd-v-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      flex: 0 0 auto; min-width: 28px; height: 28px; padding: 0 6px;
+      border: 1px solid transparent; border-radius: 4px; background: transparent;
+      color: #4b5563; font-size: 14px; line-height: 1; cursor: pointer;
+    }
+    #ofdv3-root .ofd-v-btn::before { font-family: FontAwesome; font-style: normal; font-weight: normal; }
+    #ofdv3-root .ofd-v-btn:hover:not(:disabled) { background: #e2e8f0; }
+    #ofdv3-root .ofd-v-btn:disabled { opacity: .35; cursor: default; }
+    #ofdv3-root .ofd-v-btn.toggled { background: #dbeafe; border-color: #bfdbfe; color: #1d4ed8; }
+
+    #sidebarToggleButton::before { content: "\f0c9"; }
+    #previous::before { content: "\f060"; }
+    #next::before { content: "\f061"; }
+    #zoomIn::before { content: "\f00e"; }
+    #zoomOut::before { content: "\f010"; }
+    #openFile::before, #openFileButton::before { content: "\f115"; }
+    #download::before, #downloadButton::before { content: "\f019"; }
+    #print::before, #printButton::before { content: "\f02f"; }
+    #secondaryToggleButton::before { content: "\f141"; }
+    #firstPageButton::before { content: "\f048"; }
+    #lastPageButton::before { content: "\f051"; }
+    #pageRotateCwButton::before { content: "\f01e"; }
+    #pageRotateCcwButton::before { content: "\f0e2"; }
+    #cursorSelectToolButton::before { content: "\f245"; }
+    #cursorHandToolButton::before { content: "\f256"; }
+    #scrollPageButton::before { content: "\f00a"; }
+    #scrollVerticalButton::before { content: "\f07d"; }
+    #scrollHorizontalButton::before { content: "\f07e"; }
+    #scrollWrappedButton::before { content: "\f00b"; }
+    #spreadNoneButton::before, #spreadOddButton::before, #spreadEvenButton::before { content: "\f0db"; }
+    #documentPropertiesButton::before { content: "\f05a"; }
+    #secondaryCloseButton::before { content: "\f00d"; }
+    #currentOutlineItemButton::before { content: "\f0da"; }
+    #thumbnailButton::before { content: "\f009"; }
+    #outlineButton::before { content: "\f0e8"; }
+    #attachmentsButton::before { content: "\f0c6"; }
+    #layersButton::before { content: "\f247"; }
+    #signaturesButton::before { content: "\f0a3"; }
+
+    /* ---------- 主工具条 ---------- */
+    #ofdv3-toolbar {
+      position: relative; z-index: 20; flex: 0 0 auto;
+      display: flex; align-items: center; gap: 2px;
+      padding: 5px 8px; background: #f8fafc; border-bottom: 1px solid #e5e7eb;
+    }
+    #ofdv3-toolbar .ofd-v-sep { width: 1px; height: 20px; margin: 0 6px; background: #e5e7eb; }
+    #ofdv3-toolbar .ofd-v-spacer { flex: 1 1 auto; }
+    #pageNumber {
+      width: 48px; height: 26px; margin-left: 2px; padding: 0 4px;
+      border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+      color: #374151; text-align: center; font-size: 13px;
+    }
+    #pageNumber.visiblePageIsLoading { opacity: .55; }
+    #numPages { padding: 0 4px; color: #6b7280; white-space: nowrap; }
+    #scaleSelect {
+      height: 26px; margin-left: 4px; padding: 0 4px;
+      border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+      color: #374151; font-size: 13px;
+    }
+
+    /* ---------- 更多工具面板 ---------- */
+    #ofdv3-secondaryToolbar {
+      position: absolute; top: 40px; right: 8px; z-index: 30;
+      width: 208px; padding: 6px;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 6px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
+    }
+    #toolbarButtonContainer { display: flex; flex-direction: column; overflow-y: auto; }
+    #ofdv3-secondaryToolbar .ofd-v-btn {
+      justify-content: flex-start; width: 100%; height: 30px; font-size: 12px;
+    }
+    #ofdv3-secondaryToolbar .ofd-v-divider { height: 1px; margin: 4px 2px; background: #eef2f7; }
+
+    /* ---------- 内容区 ---------- */
+    #ofdv3-body { position: relative; flex: 1 1 auto; display: flex; min-height: 0; }
+    #ofdv3-main {
+      position: relative; flex: 1 1 auto; min-height: 0;
+      overflow: auto; background: #e5e7eb;
+    }
+    #ofdv3-viewer { position: relative; }
+
+    /* 侧边栏：由组件的 sidebarOpen 类控制显隐 */
+    #ofdv3-sidebar {
+      flex: 0 0 240px; display: flex; flex-direction: column;
+      background: #fff; border-right: 1px solid #e5e7eb; overflow: hidden;
+    }
+    #ofdv3-root:not(.sidebarOpen) #ofdv3-sidebar { display: none; }
+    #ofdv3-sidebarTabs { display: flex; flex: 0 0 auto; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+    #ofdv3-sidebarTabs .ofd-v-tab {
+      flex: 1 1 0; min-width: 0; padding: 7px 0 6px; border: none; background: transparent;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      color: #6b7280; font-size: 11px; line-height: 1.1; cursor: pointer;
+    }
+    #ofdv3-sidebarTabs .ofd-v-tab::before { font-family: FontAwesome; font-size: 14px; font-style: normal; }
+    #ofdv3-sidebarTabs .ofd-v-tab:hover:not(:disabled) { color: #1d4ed8; background: #f1f5f9; }
+    #ofdv3-sidebarTabs .ofd-v-tab.toggled { color: #1d4ed8; background: #eff6ff; }
+    #ofdv3-sidebarTabs .ofd-v-tab:disabled { opacity: .35; cursor: default; }
+    #ofdv3-sidebarBody { flex: 1 1 auto; min-height: 0; overflow: auto; }
+    #ofdv3-sidebarBody > div { padding: 8px; }
+    #outlineOptionsContainer { flex: 0 0 auto; padding: 6px 8px; border-top: 1px solid #eef2f7; }
+    #currentOutlineItemButton {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 5px; border: 1px solid #d1d5db; border-radius: 4px;
+      background: #fff; color: #374151; font-size: 12px; cursor: pointer;
+    }
+    #currentOutlineItemButton::before { font-family: FontAwesome; font-style: normal; }
+    #currentOutlineItemButton:hover:not(:disabled) { background: #f1f5f9; }
+    #currentOutlineItemButton:disabled { opacity: .5; cursor: default; }
+
+    /* 缩略图 */
+    #thumbnailView { text-align: center; }
+    #thumbnailView > a { display: block; text-decoration: none; }
+    #thumbnailView .thumbnail { display: inline-block; margin-bottom: 8px; cursor: pointer; }
+    #thumbnailView .thumbnailSelectionRing {
+      border: 2px solid transparent; border-radius: 4px; background: rgba(0, 0, 0, .06);
+    }
+    #thumbnailView .thumbnail.selected > .thumbnailSelectionRing {
+      border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6;
+    }
+
+    /* 目录 / 自定义标签树 */
+    #ofdv3-root .treeItem { position: relative; padding: 1px 0; font-size: 12px; }
+    #ofdv3-root .treeItem > a {
+      display: inline-block; padding: 1px 4px; border-radius: 3px;
+      color: #374151; text-decoration: none; cursor: pointer;
+    }
+    #ofdv3-root .treeItem > a:hover { background: #eff6ff; color: #1d4ed8; }
+    #ofdv3-root .treeItems { padding-left: 12px; }
+    #ofdv3-root .treeItemToggler { display: inline-block; width: 12px; cursor: pointer; }
+    #ofdv3-root .treeItemToggler::before { font-family: FontAwesome; font-size: 10px; color: #9ca3af; content: "\f0d7"; }
+    #ofdv3-root .treeItemToggler.treeItemsHidden::before { content: "\f0da"; }
+    #ofdv3-root .treeItemToggler.treeItemsHidden ~ .treeItems { display: none; }
+
+    /* 附件 / 图层列表（组件自行生成卡片） */
+    #attachmentsView a, #layersView a { text-decoration: none; color: #374151; }
+    #attachmentsView .thumbnail, #layersView .thumbnail {
+      border: 1px solid #e5e7eb !important; border-radius: 4px; cursor: pointer;
+    }
+
+    /* 页面与滚动模式 */
+    #ofdv3-viewer .page {
+      margin: 16px auto; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+    }
+    #ofdv3-viewer.scrollHorizontal { white-space: nowrap; text-align: center; }
+    #ofdv3-viewer.scrollHorizontal .page { display: inline-block; vertical-align: top; margin: 16px 8px; }
+    #ofdv3-viewer.scrollWrapped { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 12px; }
+    #ofdv3-viewer .spread { display: inline-block; vertical-align: top; }
+    #ofdv3-viewer .spread .page { display: inline-block; vertical-align: top; margin: 16px 4px; }
+    #ofdv3-viewer .error { padding: 20px; color: #b91c1c; }
+
+    /* 抓手工具 */
+    #ofdv3-root .grab-to-pan-grab { cursor: grab; }
+    .grab-to-pan-grabbing {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 9999; overflow: hidden; cursor: grabbing;
+    }
+
+    /* ---------- 解析失败提示 ---------- */
+    #ofdv3-error {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 40;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+      padding: 24px; text-align: center; background: rgba(255, 255, 255, .94); color: #b91c1c;
+    }
+    #ofdv3-errorClose, #ofdv3-errorMoreInfo {
+      padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 4px;
+      background: #fff; color: #374151; font-size: 13px; cursor: pointer;
+    }
+
+    /* ---------- 属性对话框（宿主容器之外，故不限定作用域） ---------- */
+    dialog.ofd-dialog { border: none; border-radius: 8px; padding: 0; box-shadow: 0 10px 25px rgba(0, 0, 0, .2); }
+    dialog.ofd-dialog::backdrop { background: rgba(0, 0, 0, .3); }
+    .ofd-dialog-body {
+      max-width: 520px; max-height: 70vh; overflow: auto;
+      padding: 18px 20px; font-size: 13px; color: #374151;
+    }
+    .ofd-dialog-body h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+    .ofd-dialog-table { width: 100%; border-collapse: collapse; }
+    .ofd-dialog-table th {
+      width: 92px; padding: 5px 8px 5px 0; text-align: right; vertical-align: top;
+      font-weight: 500; color: #6b7280; white-space: nowrap;
+    }
+    .ofd-dialog-table td { padding: 5px 0; word-break: break-all; }
+    .ofd-dialog-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+    .ofd-dialog-actions button {
+      padding: 4px 14px; border: 1px solid #d1d5db; border-radius: 4px;
+      background: #f9fafb; color: #374151; font-size: 13px; cursor: pointer;
+    }
+  </style>
+
+  <!--
+    阅读器界面中文文案：第三方组件通过浏览器内置的 webL10n 读取本节点。
+    注意词条值必须是「属性 → 文本」的对象（如 { "textContent": "…" }），
+    这是 webL10n 内部的存储结构；写成裸字符串会解析失败并显示 {{key}}。
+    键名中最后一个点号之后的部分即为该属性名（如 toggle_sidebar.title）。
+    未在此列出的词条会自动回退到组件内置的英文文案。
+  -->
+  <script type="application/l10n">
+    {
+      "locales": {
+        "zh-cn": {
+          "of_pages":                 { "textContent": "共 {{pagesCount}} 页" },
+          "page_of_pages":            { "textContent": "第 {{pageNumber}} 页 / 共 {{pagesCount}} 页" },
+          "print_progress_percent":   { "textContent": "{{progress}}%" },
+          "toggle_sidebar":           { "title": "显示或隐藏侧边栏" },
+          "toggle_sidebar_notification2": { "title": "显示或隐藏侧边栏（文档包含目录 / 附件 / 图层）" },
+          "additional_layers":        { "textContent": "其他图层" },
+          "page_landmark":            { "textContent": "第 {{page}} 页" },
+          "thumb_page_title":         { "title": "第 {{page}} 页" },
+          "thumb_page_canvas":        { "textContent": "第 {{page}} 页缩略图" },
+          "document_properties_linearized_yes": { "textContent": "是" },
+          "document_properties_linearized_no":  { "textContent": "否" }
+        }
+      },
+      "default_locale": "zh-cn"
+    }
+  </script>
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col">
   <!-- 顶部导航栏 -->
@@ -95,6 +345,31 @@
 
     <!-- 右侧预览区域 -->
     <div class="lg:w-3/4 bg-white rounded-lg shadow-card p-4 flex flex-col">
+      <!-- 解析器开关 -->
+      <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <label class="flex items-center space-x-2 cursor-pointer select-none">
+          <input id="tp-toggle" type="checkbox" class="h-4 w-4 accent-blue-600">
+          <span class="text-sm font-semibold text-gray-700">试用第三方解析器</span>
+        </label>
+
+        <div id="tp-options" class="mt-3 hidden border-t border-gray-200 pt-3">
+          <div class="flex flex-col gap-1 text-sm text-gray-700">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="radio" name="tp-print-mode" value="a" class="accent-blue-600" checked>
+              <span>浏览器渲染</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="radio" name="tp-print-mode" value="b" class="accent-blue-600">
+              <span>阅读器（简版）</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="radio" name="tp-print-mode" value="c" class="accent-blue-600">
+              <span>阅读器（完整版）</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div id="preview-header" class="mb-4 flex justify-between items-center">
         <h2 class="text-lg font-semibold text-gray-800" id="document-title">请选择一个文件进行预览</h2>
         <div class="flex items-center space-x-2">
@@ -133,6 +408,9 @@
         <!-- 文档内容将通过JavaScript动态生成 -->
       </div>
 
+      <!-- 第三方阅读器（简版/完整版）宿主容器 -->
+      <div id="tp-viewer-host" class="hidden rounded border border-gray-200 bg-gray-100" style="height:72vh;min-height:420px;overflow:auto;"></div>
+
       <div id="no-file-selected" class="flex-grow flex items-center justify-center">
         <div class="flex flex-col items-center text-center p-4">
           <i class="fa fa-file-o text-5xl text-gray-300 mb-4"></i>
@@ -149,6 +427,204 @@
       <p>© 2025 OFD文件查看器 | 使用 <a href="https://github.com/zhiyuan411/ofd.js-free" target="_blank" class="text-primary hover:underline">ofd.js</a> 构建</p>
     </div>
   </footer>
+
+  <!-- 第三方「自行组织打印」流程的进度弹层 -->
+  <div id="tp-progress" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-5 flex flex-col items-center gap-3 shadow-lg">
+      <p id="tp-progress-text" class="text-sm text-gray-700">正在准备打印…</p>
+      <progress id="tp-progress-bar" value="0" max="100" class="w-56"></progress>
+      <button id="tp-progress-cancel" class="px-3 py-1 text-sm rounded bg-gray-100 hover:bg-gray-200">取消</button>
+    </div>
+  </div>
+
+  <!--
+    阅读器内打印（printOFD）要求页面存在 id="printServiceDialog"（内含 <progress> 与 .relative-progress）
+    以及 id="printCancel"。这里用 template 保存模板，每次重建完整阅读器时替换成新的实例，
+    避免 SDK 反复往同一节点上叠加事件监听。
+  -->
+  <template id="print-dialog-tpl">
+    <dialog id="printServiceDialog">
+      <div style="width:280px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;align-items:center;font-family:inherit">
+        <p style="margin:0;font-size:14px;color:#374151">正在准备打印…</p>
+        <progress value="0" max="100" style="width:100%"></progress>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span class="relative-progress" style="font-size:13px;color:#6b7280">0%</span>
+          <button id="printCancel" type="button" style="padding:4px 12px;font-size:13px;border:1px solid #d1d5db;background:#f9fafb;border-radius:4px;cursor:pointer">取消</button>
+        </div>
+      </div>
+    </dialog>
+  </template>
+
+  <!--
+    文档属性 / 签名属性对话框：组件会把「字段值」的 textContent 直接写成
+    fields 的键名对应的数据，因此 td 的 id 必须与其内部 fieldData 的键一致，
+    否则该行只会显示 “-”。
+  -->
+  <template id="doc-props-tpl">
+    <dialog id="documentPropertiesDialog" class="ofd-dialog">
+      <div class="ofd-dialog-body">
+        <h3>文档属性</h3>
+        <table class="ofd-dialog-table">
+          <tbody>
+            <tr><th>文件大小</th><td id="dpFileSize"></td></tr>
+            <tr><th>标题</th><td id="dpTitle"></td></tr>
+            <tr><th>作者</th><td id="dpAuthor"></td></tr>
+            <tr><th>主题</th><td id="dpSubject"></td></tr>
+            <tr><th>关键词</th><td id="dpKeywords"></td></tr>
+            <tr><th>创建时间</th><td id="dpCreationDate"></td></tr>
+            <tr><th>修改时间</th><td id="dpModificationDate"></td></tr>
+            <tr><th>创建应用</th><td id="dpCreator"></td></tr>
+            <tr><th>生成应用</th><td id="dpProducer"></td></tr>
+            <tr><th>版本</th><td id="dpVersion"></td></tr>
+            <tr><th>页数</th><td id="dpPageCount"></td></tr>
+            <tr><th>页面大小</th><td id="dpPageSize"></td></tr>
+          </tbody>
+        </table>
+        <div class="ofd-dialog-actions">
+          <button id="documentPropertiesClose" type="button">关闭</button>
+        </div>
+      </div>
+    </dialog>
+  </template>
+
+  <template id="sign-props-tpl">
+    <dialog id="signaturePropertiesDialog" class="ofd-dialog">
+      <div class="ofd-dialog-body">
+        <h3>签名属性</h3>
+        <table class="ofd-dialog-table">
+          <tbody>
+            <tr><th>签名者</th><td id="spSigner"></td></tr>
+            <tr><th>签名服务</th><td id="spProvider"></td></tr>
+            <tr><th>签名算法</th><td id="spSignMethod"></td></tr>
+            <tr><th>签名版本</th><td id="spSignVersion"></td></tr>
+            <tr><th>摘要值</th><td id="spHashedValue"></td></tr>
+            <tr><th>签名值</th><td id="spSignedValue"></td></tr>
+            <tr><th>验证结果</th><td id="spVerify"></td></tr>
+            <tr><th>印章标识</th><td id="spSealID"></td></tr>
+            <tr><th>印章名称</th><td id="spSealName"></td></tr>
+            <tr><th>印章类型</th><td id="spSealType"></td></tr>
+            <tr><th>印章有效期</th><td id="spSealAuthTime"></td></tr>
+            <tr><th>印章制作时间</th><td id="spSealMakeTime"></td></tr>
+            <tr><th>印章版本</th><td id="spSealVersion"></td></tr>
+          </tbody>
+        </table>
+        <div class="ofd-dialog-actions">
+          <button id="signaturePropertiesClose" type="button">关闭</button>
+        </div>
+      </div>
+    </dialog>
+  </template>
+
+  <!--
+    「完整阅读器」界面骨架：第三方组件按 id 查找这些节点，缺失会导致初始化
+    报错，因此这里把工具条、更多工具面板、侧边栏、错误提示都补齐。
+    用 template 保存，每次重建阅读器时克隆一份全新的实例。
+  -->
+  <template id="tp-viewer-tpl">
+    <div id="ofdv3-root">
+      <!-- 主工具条 -->
+      <div id="ofdv3-toolbar">
+        <button id="sidebarToggleButton" class="ofd-v-btn" type="button" title="显示或隐藏侧边栏" aria-expanded="false"></button>
+        <span class="ofd-v-sep"></span>
+        <button id="previous" class="ofd-v-btn" type="button" title="上一页"></button>
+        <button id="next" class="ofd-v-btn" type="button" title="下一页"></button>
+        <input id="pageNumber" type="number" value="1" min="1" title="页码">
+        <span id="numPages"></span>
+        <span class="ofd-v-sep"></span>
+        <button id="zoomOut" class="ofd-v-btn" type="button" title="缩小"></button>
+        <button id="zoomIn" class="ofd-v-btn" type="button" title="放大"></button>
+        <select id="scaleSelect" title="缩放比例">
+          <option id="pageAutoOption" value="auto" selected>自动缩放</option>
+          <option value="page-actual">实际大小</option>
+          <option value="page-fit">适合页面</option>
+          <option value="page-width">适合宽度</option>
+          <option value="page-height">适合高度</option>
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+          <option value="3">300%</option>
+          <option value="4">400%</option>
+          <option id="customScaleOption" value="custom" hidden disabled></option>
+        </select>
+        <span class="ofd-v-spacer"></span>
+        <button id="openFile" class="ofd-v-btn" type="button" title="打开本地文件"></button>
+        <button id="download" class="ofd-v-btn" type="button" title="下载"></button>
+        <button id="print" class="ofd-v-btn" type="button" title="打印"></button>
+        <!-- 下面两个按钮组件会自行隐藏（本版本不具备对应能力） -->
+        <button id="presentationModeButton" class="ofd-v-btn" type="button" hidden></button>
+        <button id="viewBookmark" class="ofd-v-btn" type="button" hidden></button>
+        <button id="secondaryToggleButton" class="ofd-v-btn" type="button" title="更多工具"></button>
+      </div>
+
+      <!-- 更多工具面板 -->
+      <div id="ofdv3-secondaryToolbar" class="hidden">
+        <div id="toolbarButtonContainer">
+          <button id="openFileButton" class="ofd-v-btn" type="button">打开本地文件</button>
+          <button id="printButton" class="ofd-v-btn" type="button">打印</button>
+          <button id="downloadButton" class="ofd-v-btn" type="button">下载</button>
+          <button id="viewBookmarkButton" class="ofd-v-btn" type="button" hidden>复制当前页链接</button>
+          <div class="ofd-v-divider"></div>
+          <button id="firstPageButton" class="ofd-v-btn" type="button">首页</button>
+          <button id="lastPageButton" class="ofd-v-btn" type="button">末页</button>
+          <button id="pageRotateCwButton" class="ofd-v-btn" type="button">顺时针旋转</button>
+          <button id="pageRotateCcwButton" class="ofd-v-btn" type="button">逆时针旋转</button>
+          <button id="cursorSelectToolButton" class="ofd-v-btn" type="button">文字选择工具</button>
+          <button id="cursorHandToolButton" class="ofd-v-btn" type="button">拖拽（抓手）工具</button>
+          <div class="ofd-v-divider"></div>
+          <button id="scrollPageButton" class="ofd-v-btn" type="button">单页滚动</button>
+          <button id="scrollVerticalButton" class="ofd-v-btn" type="button">垂直滚动</button>
+          <button id="scrollHorizontalButton" class="ofd-v-btn" type="button">水平滚动</button>
+          <button id="scrollWrappedButton" class="ofd-v-btn" type="button">自动网格排列</button>
+          <div class="ofd-v-divider"></div>
+          <button id="spreadNoneButton" class="ofd-v-btn" type="button">单页显示</button>
+          <button id="spreadOddButton" class="ofd-v-btn" type="button">奇数页跨页</button>
+          <button id="spreadEvenButton" class="ofd-v-btn" type="button">偶数页跨页</button>
+          <div class="ofd-v-divider"></div>
+          <button id="documentPropertiesButton" class="ofd-v-btn" type="button">文档属性</button>
+          <button id="secondaryCloseButton" class="ofd-v-btn" type="button">关闭</button>
+        </div>
+      </div>
+
+      <!-- 内容区：侧边栏 + 页面视图 -->
+      <div id="ofdv3-body">
+        <div id="ofdv3-sidebar">
+          <div id="ofdv3-sidebarTabs">
+            <button id="thumbnailButton" class="ofd-v-tab" type="button">缩略图</button>
+            <button id="outlineButton" class="ofd-v-tab toggled" type="button">目录</button>
+            <button id="attachmentsButton" class="ofd-v-tab" type="button">附件</button>
+            <button id="layersButton" class="ofd-v-tab" type="button">图层</button>
+            <button id="signaturesButton" class="ofd-v-tab" type="button">签名</button>
+          </div>
+          <div id="ofdv3-sidebarBody">
+            <div id="thumbnailView" class="hidden"></div>
+            <div id="outlineView"></div>
+            <div id="attachmentsView" class="hidden"></div>
+            <div id="layersView" class="hidden"></div>
+            <div id="signaturesView" class="hidden"></div>
+          </div>
+          <div id="outlineOptionsContainer">
+            <button id="currentOutlineItemButton" type="button">定位到当前页</button>
+          </div>
+          <div id="sidebarTitle" class="hidden"></div>
+        </div>
+        <div id="ofdv3-main">
+          <div id="ofdv3-viewer"></div>
+        </div>
+      </div>
+
+      <!-- 解析失败提示 -->
+      <div id="ofdv3-error" hidden>
+        <span id="ofdv3-errorMessage"></span>
+        <button id="ofdv3-errorMoreInfo" type="button">更多信息</button>
+        <button id="ofdv3-errorClose" type="button">关闭</button>
+      </div>
+    </div>
+  </template>
+
+  <div id="tp-dialog-holder"></div>
 
   <!-- JavaScript -->
   <script>
@@ -171,6 +647,15 @@
       const themeToggle = document.getElementById('theme-toggle');
       const clearFilesBtn = document.getElementById('clear-files'); // 👈 新增
 
+      // 第三方解析器相关节点
+      const tpToggle = document.getElementById('tp-toggle');
+      const tpOptions = document.getElementById('tp-options');
+      const tpProgress = document.getElementById('tp-progress');
+      const tpProgressText = document.getElementById('tp-progress-text');
+      const tpProgressBar = document.getElementById('tp-progress-bar');
+      const tpProgressCancel = document.getElementById('tp-progress-cancel');
+      const viewerHost = document.getElementById('tp-viewer-host');
+
       // 存储已上传的文件
       let uploadedFiles = [];
       let currentFileIndex = -1;
@@ -179,11 +664,35 @@
       const maxZoom = 200;
       const zoomStep = 10;
 
+      /* ==================================================================
+       * 第三方解析器（可选）—— 开关关闭时完全不加载、不使用
+       * 凭据来源：localStorage 优先；不存在或解析失败时再请求 ofdkey.json，
+       *          拿到后写入 localStorage。代码中不含任何 secret / digest 字面量。
+       * ================================================================== */
+      const TP_LIB = ['./parser_helper_x.js', './parser_x.js'];
+      const TP_LS_SECRET = 'ofd.tp.secret';
+      const TP_LS_DIGEST = 'ofd.tp.digest';
+      const TP_OFDKEY_URL = 'https://app.xunjiepdf.com/ScriptsMain/ofdkey.json';
+      const TP_BASE_WIDTH = 800;   // 自行组织渲染时的基准页宽(px)
+
+      const tpState = {
+        enabled: false,
+        mode: 'a',          // a | b | c
+        libReady: false,
+        libLoading: null,
+        core: null,         // 解析得到的 Ofd_Core（a/b 打印用）
+        viewerReady: false, // c 模式：完整阅读器是否已成功加载文档
+        viewerConfig: null, // c 模式：传给 initOFDViewer 的 config（同一对象引用）
+        printApi: null,     // b 模式：OFDPrintApi 实例
+      };
+
       // 初始化
       initFileUpload();
       initEventListeners();
+      tpInit();
 
-      // 初始化文件上传功能
+      /* ---------------------------------------------------------------- 文件上传 */
+
       function initFileUpload() {
         // 点击上传区域触发文件选择
         dropArea.addEventListener('click', () => {
@@ -233,7 +742,6 @@
         }
       }
 
-      // 初始化事件监听器
       function initEventListeners() {
         // 缩放按钮
         zoomIn.addEventListener('click', () => {
@@ -261,7 +769,10 @@
 
         // 打印按钮
         printBtn.addEventListener('click', () => {
-          if (currentFileIndex >= 0) {
+          if (currentFileIndex < 0) return;
+          if (tpState.enabled) {
+            tpPrint();
+          } else {
             printOfdDocument();
           }
         });
@@ -273,7 +784,6 @@
         themeToggle.addEventListener('click', toggleTheme);
       }
 
-      // 处理文件选择
       function handleFileSelect(e) {
         const files = e.target.files;
         if (files.length > 0) {
@@ -281,7 +791,6 @@
         }
       }
 
-      // 处理文件
       function handleFiles(files) {
         // 过滤OFD文件
         const ofdFiles = Array.from(files).filter(file => file.name.endsWith('.ofd'));
@@ -312,7 +821,6 @@
         fileInput.value = '';
       }
 
-      // 更新文件列表
       function updateFileList() {
         if (uploadedFiles.length === 0) {
           fileList.innerHTML = '<li class="text-gray-500 text-center italic py-4">暂无文件</li>';
@@ -352,7 +860,6 @@
         }
       }
 
-      // 选择文件进行预览
       function selectFile(index) {
         if (index < 0 || index >= uploadedFiles.length) return;
 
@@ -366,18 +873,17 @@
         // 显示加载状态
         showLoading();
 
-        // 解析OFD文件
-        parseOfdFile(file);
+        // 解析并渲染（依据开关分流）
+        loadDocument(file);
       }
 
-      // 删除文件
       function deleteFile(index) {
         if (index < 0 || index >= uploadedFiles.length) return;
 
         // 如果删除的是当前正在预览的文件
         if (index === currentFileIndex) {
           // 清空预览
-          previewContent.innerHTML = '';
+          resetViewers();
           documentTitle.textContent = '请选择一个文件进行预览';
 
           // 禁用按钮
@@ -405,7 +911,7 @@
         updateFileList();
       }
 
-      // 👇 新增：清空所有文件
+      // 👈 新增：清空所有文件
       function clearAllFiles() {
         if (uploadedFiles.length === 0) return;
 
@@ -414,14 +920,37 @@
 
         updateFileList();
         documentTitle.textContent = '请选择一个文件进行预览';
-        previewContent.innerHTML = '';
+        resetViewers();
         showNoFileSelected();
         disablePreviewControls();
 
         showNotification('已清空所有文件', 'info');
       }
 
-      // 解析OFD文件
+      /* ============================================================ 统一入口 */
+
+      function loadDocument(file) {
+        if (tpState.enabled) {
+          return tpLoadDocument(file);
+        }
+        return parseOfdFile(file);
+      }
+
+      // 清理两种渲染结果（本仓库 ofd.js / 第三方）
+      function resetViewers() {
+        previewContent.innerHTML = '';
+        previewContent.style.width = '';
+        viewerHost.innerHTML = '';
+        viewerHost.classList.add('hidden');
+        document.getElementById('tp-dialog-holder').innerHTML = '';
+        tpState.core = null;
+        tpState.viewerReady = false;
+        tpState.viewerConfig = null;
+        tpState.printApi = null;
+      }
+
+      /* ================================================== 本仓库 ofd.js 解析 */
+
       function parseOfdFile(file) {
         try {
           // 重置缩放
@@ -448,7 +977,7 @@
               success(parsedDocs) {
                 try {
                   console.log('✅ 解析成功，开始渲染...', parsedDocs);
-                  
+
                   // 获取第一个文档对象
                   const ofdDoc = parsedDocs[0];
                   if (!ofdDoc || !ofdDoc.pages) {
@@ -500,7 +1029,8 @@
         }
       }
 
-      // 改变缩放级别
+      /* ============================================== 缩放 / 按钮 / 视图状态 */
+
       function changeZoom(level) {
         if (level < minZoom || level > maxZoom) return;
 
@@ -510,8 +1040,15 @@
         applyZoom();
       }
 
-      // 应用缩放
       function applyZoom() {
+        // 第三方模式：a 通过按新宽度重新渲染实现；b/c 由 SDK 阅读器自行管理比例
+        if (tpState.enabled) {
+          if (tpState.mode === 'a' && tpState.core) {
+            tpRenderNoReader(tpState.core).catch(err => showError(`渲染失败：${err.message}`));
+          }
+          return;
+        }
+
         const scale = currentZoom / 100;
 
         // 对每个页面应用缩放
@@ -529,8 +1066,11 @@
         previewContent.style.width = `${containerWidth}%`;
       }
 
-      // 启用预览控制按钮
       function enablePreviewControls() {
+        if (tpState.enabled) {
+          updateTpControls();
+          return;
+        }
         zoomIn.disabled = false;
         zoomOut.disabled = false;
         downloadBtn.disabled = false;
@@ -538,7 +1078,6 @@
         updateZoomButtonsState();
       }
 
-      // 禁用预览控制按钮
       function disablePreviewControls() {
         zoomIn.disabled = true;
         zoomOut.disabled = true;
@@ -546,53 +1085,70 @@
         printBtn.disabled = true;
       }
 
-      // 更新缩放按钮状态
       function updateZoomButtonsState() {
         zoomOut.disabled = currentZoom <= minZoom;
         zoomIn.disabled = currentZoom >= maxZoom;
       }
 
-      // 显示加载状态
+      // 第三方模式下按钮可用性：仅方式 a 支持页面缩放
+      function updateTpControls() {
+        printBtn.disabled = false;
+        downloadBtn.disabled = currentFileIndex < 0;
+        const canZoom = tpState.mode === 'a';
+        zoomOut.disabled = !canZoom || currentZoom <= minZoom;
+        zoomIn.disabled = !canZoom || currentZoom >= maxZoom;
+      }
+
       function showLoading() {
         previewLoading.classList.remove('hidden');
         previewError.classList.add('hidden');
         previewContent.classList.add('hidden');
+        viewerHost.classList.add('hidden');
         noFileSelected.classList.add('hidden');
       }
 
-      // 显示错误状态
       function showError(message) {
         errorMessage.textContent = message;
         previewLoading.classList.add('hidden');
         previewError.classList.remove('hidden');
         previewContent.classList.add('hidden');
+        viewerHost.classList.add('hidden');
         noFileSelected.classList.add('hidden');
 
         // 禁用控制按钮
         disablePreviewControls();
       }
 
-      // 显示预览内容
       function showPreviewContent() {
         previewLoading.classList.add('hidden');
         previewError.classList.add('hidden');
+        viewerHost.classList.add('hidden');
         previewContent.classList.remove('hidden');
         previewContent.classList.add('block');
         noFileSelected.classList.add('hidden');
 
-        // 应用当前缩放
-        applyZoom();
+        // 应用当前缩放（第三方模式已按目标宽度渲染，无需再变换）
+        if (!tpState.enabled) applyZoom();
       }
 
-      // 显示无文件选中状态
+      // 显示第三方阅读器宿主容器（必须在 SDK 渲染前显示，SDK 需测量容器尺寸）
+      function showTpViewerHost(clear) {
+        if (clear) viewerHost.innerHTML = '';
+        previewLoading.classList.add('hidden');
+        previewError.classList.add('hidden');
+        previewContent.classList.add('hidden');
+        noFileSelected.classList.add('hidden');
+        viewerHost.classList.remove('hidden');
+      }
+
       function showNoFileSelected() {
         previewLoading.classList.add('hidden');
         previewError.classList.add('hidden');
         previewContent.classList.add('hidden');
+        viewerHost.classList.add('hidden');
         noFileSelected.classList.remove('hidden');
       }
 
-      // 主题切换
       function toggleTheme() {
         document.body.classList.toggle('dark');
 
@@ -602,7 +1158,6 @@
           '<i class="fa fa-moon-o text-gray-600"></i>';
       }
 
-      // 显示通知
       function showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg z-50 transition-all-300 transform translate-y-0 opacity-100 ${
@@ -619,7 +1174,8 @@
         }, 3000);
       }
 
-      // 打印 OFD 文档函数
+      /* ============================================ 打印：自行组织（原有方式） */
+
       function printOfdDocument() {
         const content = previewContent.innerHTML;
         if (!content.trim()) {
@@ -658,6 +1214,18 @@
                 height: auto !important;
                 box-sizing: border-box;
               }
+              /* 第三方渲染出的每一页（无固定 class，按顶层 div 处理） */
+              body > div {
+                page-break-after: always;
+                break-after: page;
+                margin: 0 !important;
+                max-width: 100% !important;
+                box-sizing: border-box;
+              }
+              body > div:last-child {
+                page-break-after: auto;
+                break-after: auto;
+              }
               @media print {
                 body {
                   -webkit-print-color-adjust: exact;
@@ -678,6 +1246,531 @@
           iframe.contentWindow.print();
           document.body.removeChild(iframe);
         }, 500);
+      }
+
+      /* ============================================================ 第三方模式 */
+      /* ------------------------------------------------------------ 开关 / UI */
+
+      function tpInit() {
+        tpToggle.addEventListener('change', () => {
+          tpState.enabled = tpToggle.checked;
+          tpOptions.classList.toggle('hidden', !tpState.enabled);
+
+          if (tpState.enabled) {
+            // 打开开关时立即预热依赖，减少首次解析等待
+            tpLoadLibs().catch(err => showNotification(err.message, 'error'));
+          } else {
+            tpShowProgress(false);
+            resetViewers();
+          }
+
+          // 切换解析方案后，重新加载当前文件
+          if (currentFileIndex >= 0) {
+            showLoading();
+            loadDocument(uploadedFiles[currentFileIndex]);
+          } else {
+            showNoFileSelected();
+            disablePreviewControls();
+          }
+        });
+
+        document.querySelectorAll('input[name="tp-print-mode"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            if (!radio.checked) return;
+            tpState.mode = radio.value;
+            resetViewers();
+            if (currentFileIndex >= 0) {
+              showLoading();
+              loadDocument(uploadedFiles[currentFileIndex]);
+            }
+          });
+        });
+
+        tpProgressCancel.addEventListener('click', () => {
+          if (tpState.printApi && typeof tpState.printApi.closePrint === 'function') {
+            tpState.printApi.closePrint();
+          }
+          tpState.printApi = null;
+          tpShowProgress(false);
+        });
+      }
+
+      /* ------------------------------------------------------------ 依赖加载 */
+
+      function tpLoadScript(src) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error(`第三方依赖加载失败：${src}`));
+          document.head.appendChild(script);
+        });
+      }
+
+      function tpLoadLibs() {
+        if (tpState.libReady) return Promise.resolve();
+        if (!tpState.libLoading) {
+          tpState.libLoading = tpLoadScript(TP_LIB[0])
+            .then(() => tpLoadScript(TP_LIB[1]))
+            .then(() => {
+              if (!window.parser_x || typeof window.parser_x.parseOfdDocument !== 'function') {
+                throw new Error('第三方解析器初始化失败（parser_x 未就绪）');
+              }
+              tpState.libReady = true;
+            })
+            .catch(err => {
+              tpState.libLoading = null;
+              if (location.protocol === 'file:') {
+                err.message = `${err.message}；当前以 file:// 打开，浏览器可能拦截本地脚本，建议通过本地 HTTP 服务访问`;
+              }
+              throw err;
+            });
+        }
+        return tpState.libLoading;
+      }
+
+      /* -------------------------------------------------------------- 凭据管理 */
+      // 说明：代码中不写死 secret / digest，运行期只存在于内存与浏览器 localStorage。
+
+      function tpReadLocalCred() {
+        try {
+          const secret = localStorage.getItem(TP_LS_SECRET);
+          const digest = localStorage.getItem(TP_LS_DIGEST);
+          if (secret && digest) return { secret, digest };
+        } catch (e) {
+          console.warn('读取本地凭据失败', e);
+        }
+        return null;
+      }
+
+      function tpSaveLocalCred(cred) {
+        try {
+          localStorage.setItem(TP_LS_SECRET, cred.secret);
+          localStorage.setItem(TP_LS_DIGEST, cred.digest);
+        } catch (e) {
+          console.warn('写入本地凭据失败', e);
+        }
+      }
+
+      // forceRemote=true 时跳过本地缓存，强制重新请求
+      function tpGetCred(forceRemote) {
+        if (!forceRemote) {
+          const local = tpReadLocalCred();
+          if (local) return Promise.resolve(local);
+        }
+        return fetch(TP_OFDKEY_URL, { method: 'GET', cache: 'no-store' })
+          .then(res => {
+            if (!res.ok) throw new Error(`ofdkey.json 请求失败（HTTP ${res.status}）`);
+            return res.json();
+          })
+          .then(data => {
+            if (!data || !data.secret || !data.digest) throw new Error('ofdkey.json 返回内容缺少字段');
+            const cred = { secret: String(data.secret), digest: String(data.digest) };
+            tpSaveLocalCred(cred);
+            return cred;
+          });
+      }
+
+      // 授权相关失败（10001/10002 等）需要换凭据重试
+      function tpIsCredError(message) {
+        return /10001|10002|授权/.test(String(message || ''));
+      }
+
+      /* ---------------------------------------------------------- 解析 / 渲染 */
+
+      // 方式 a：自行解析 + 自行渲染（不带阅读器）
+      function tpParseOfd(file) {
+        return tpLoadLibs()
+          .then(() => tpGetCred(false))
+          .then(cred => tpParseOnce(file, cred).catch(err => {
+            if (!tpIsCredError(err.message)) throw err;
+            showNotification('凭据无效或已过期，正在重新获取…', 'info');
+            return tpGetCred(true).then(cred2 => tpParseOnce(file, cred2));
+          }));
+      }
+
+      function tpParseOnce(file, cred) {
+        return new Promise((resolve, reject) => {
+          window.parser_x.parseOfdDocument({
+            ofd: file,
+            secret: cred.secret,
+            digest: cred.digest,
+            success: core => resolve(core),
+            fail: msg => reject(new Error(String(msg)))
+          });
+        });
+      }
+
+      // 方式 a 的渲染：按目标宽度渲染，返回每页一个 div
+      function tpRenderNoReader(core) {
+        const width = Math.max(200, Math.round(TP_BASE_WIDTH * currentZoom / 100));
+        return window.parser_x.renderOfd(0, width).then(divs => {
+          previewContent.style.width = '';
+          previewContent.innerHTML = '';
+          (divs || []).forEach(div => {
+            div.style.display = 'block';
+            div.style.margin = '0 auto 12px auto';
+            previewContent.appendChild(div);
+          });
+          if (!divs || divs.length === 0) throw new Error('未渲染出任何页面');
+          return divs;
+        });
+      }
+
+      // 方式 b：简版阅读器（openOFDBaseViewer），打印走 OFDPrintApi
+      function tpOpenBaseViewer(file, cred) {
+        return new Promise((resolve, reject) => {
+          window.parser_x.openOFDBaseViewer({
+            container: viewerHost,
+            width: 0,
+            ofd: file,
+            secret: cred.secret,
+            digest: cred.digest,
+            // SDK 内部只有传了这个回调才会创建 eventBus，而 setOfdCore 会用到它
+            signatureClickCallback: () => {},
+            // 该回调触发在 SDK 铺页之前，正好清掉上一次的残留
+            parserOFDSuccess: core => { viewerHost.innerHTML = ''; resolve(core); },
+            parserOFDFail: msg => reject(new Error(String(msg))),
+            renderOFDCallback: () => {}
+          });
+        });
+      }
+
+      // 方式 c：完整阅读器（initOFDViewer + openOFD），打印走 printOFD
+      function tpBuildFullViewer(cred) {
+        // 每次重建：清掉旧的 fileInput，并用全新克隆替换所有对话框
+        // （组件会在初始化时往对话框上挂监听，复用同一节点会反复叠加）
+        document.querySelectorAll('body > input#fileInput').forEach(node => node.remove());
+        const holder = document.getElementById('tp-dialog-holder');
+        holder.innerHTML = '';
+        ['print-dialog-tpl', 'doc-props-tpl', 'sign-props-tpl'].forEach(id => {
+          const tpl = document.getElementById(id);
+          if (tpl) holder.appendChild(tpl.content.cloneNode(true));
+        });
+
+        viewerHost.innerHTML = '';
+        viewerHost.appendChild(document.getElementById('tp-viewer-tpl').content.cloneNode(true));
+        viewerHost.style.overflow = 'hidden';
+
+        const q = id => viewerHost.querySelector('#' + id);
+        const dlg = id => document.getElementById(id);   // 对话框在宿主容器之外
+        const config = {
+          mainContainer: q('ofdv3-main'),
+          viewerContainer: q('ofdv3-viewer'),
+          mixBlendMode: 0,
+          defaultScale: 'auto',
+          appContainer: document.documentElement,
+          secret: cred.secret,
+          digest: cred.digest,
+          toolbar: {
+            container: q('ofdv3-toolbar'),
+            numPages: q('numPages'),
+            pageNumber: q('pageNumber'),
+            scaleSelect: q('scaleSelect'),
+            customScaleOption: q('customScaleOption'),
+            previous: q('previous'), next: q('next'),
+            zoomIn: q('zoomIn'), zoomOut: q('zoomOut'),
+            openFile: q('openFile'), print: q('print'), download: q('download'),
+            presentationModeButton: q('presentationModeButton'),
+            viewBookmark: q('viewBookmark')
+          },
+          secondaryToolbar: {
+            toolbar: q('ofdv3-secondaryToolbar'),
+            toggleButton: q('secondaryToggleButton'),
+            toolbarButtonContainer: q('toolbarButtonContainer'),
+            openFileButton: q('openFileButton'), printButton: q('printButton'),
+            downloadButton: q('downloadButton'), viewBookmarkButton: q('viewBookmarkButton'),
+            firstPageButton: q('firstPageButton'), lastPageButton: q('lastPageButton'),
+            pageRotateCwButton: q('pageRotateCwButton'), pageRotateCcwButton: q('pageRotateCcwButton'),
+            cursorSelectToolButton: q('cursorSelectToolButton'), cursorHandToolButton: q('cursorHandToolButton'),
+            scrollPageButton: q('scrollPageButton'), scrollVerticalButton: q('scrollVerticalButton'),
+            scrollHorizontalButton: q('scrollHorizontalButton'), scrollWrappedButton: q('scrollWrappedButton'),
+            spreadNoneButton: q('spreadNoneButton'), spreadOddButton: q('spreadOddButton'),
+            spreadEvenButton: q('spreadEvenButton'), documentPropertiesButton: q('documentPropertiesButton'),
+            closeButton: q('secondaryCloseButton')
+          },
+          sidebar: {
+            outerContainer: q('ofdv3-root'),
+            viewerContainer: q('ofdv3-main'),
+            toggleButton: q('sidebarToggleButton'),
+            thumbnailButton: q('thumbnailButton'), outlineButton: q('outlineButton'),
+            attachmentsButton: q('attachmentsButton'), layersButton: q('layersButton'),
+            signaturesButton: q('signaturesButton'),
+            thumbnailView: q('thumbnailView'), outlineView: q('outlineView'),
+            attachmentsView: q('attachmentsView'), layersView: q('layersView'),
+            signaturesView: q('signaturesView'),
+            outlineOptionsContainer: q('outlineOptionsContainer'),
+            currentOutlineItemButton: q('currentOutlineItemButton'),
+            title: q('sidebarTitle')
+          },
+          errorWrapper: {
+            container: q('ofdv3-error'),
+            moreInfoButton: q('ofdv3-errorMoreInfo'),
+            errorMessage: q('ofdv3-errorMessage'),
+            closeButton: q('ofdv3-errorClose')
+          },
+          documentProperties: {
+            dialog: dlg('documentPropertiesDialog'),
+            closeButton: dlg('documentPropertiesClose'),
+            fields: {
+              fileSize: dlg('dpFileSize'),
+              title: dlg('dpTitle'),
+              author: dlg('dpAuthor'),
+              subject: dlg('dpSubject'),
+              keywords: dlg('dpKeywords'),
+              creationDate: dlg('dpCreationDate'),
+              modificationDate: dlg('dpModificationDate'),
+              creator: dlg('dpCreator'),
+              producer: dlg('dpProducer'),
+              version: dlg('dpVersion'),
+              pageCount: dlg('dpPageCount'),
+              pageSize: dlg('dpPageSize')
+            }
+          },
+          signatureProperties: {
+            dialog: dlg('signaturePropertiesDialog'),
+            closeButton: dlg('signaturePropertiesClose'),
+            fields: {
+              signer: dlg('spSigner'),
+              provider: dlg('spProvider'),
+              signMethod: dlg('spSignMethod'),
+              signVersion: dlg('spSignVersion'),
+              hashedValue: dlg('spHashedValue'),
+              signedValue: dlg('spSignedValue'),
+              verify: dlg('spVerify'),
+              sealID: dlg('spSealID'),
+              sealName: dlg('spSealName'),
+              sealType: dlg('spSealType'),
+              sealAuthTime: dlg('spSealAuthTime'),
+              sealMakeTime: dlg('spSealMakeTime'),
+              sealVersion: dlg('spSealVersion')
+            }
+          }
+        };
+
+        window.parser_x.initOFDViewer(config);
+        tpState.viewerConfig = config;
+        tpBindReaderPrintButtons();
+        return config;
+      }
+
+      // 阅读器工具栏内的「打印」按钮（#print / #printButton）由 SDK 自己绑定：
+      // 点击 → eventBus 派发 "print" → printOFD() → ofdPrint.open()。
+      // 而 open() 内部是在「异步渲染全部页面完成后」才 window.open(...)，
+      // 此时用户手势（transient activation）早已失效，弹窗被浏览器拦截 → 返回 null →
+      // 紧接着 `g.document.body` 抛 TypeError，于是「进度框走完 → 消失 → 无任何结果」。
+      // 这里在捕获阶段截住这两个按钮的点击（阻断 SDK 的监听），改走 tpPrintByReader()，
+      // 由它在点击手势内先同步预开窗口、再接管 window.open 交给 SDK 使用。
+      function tpBindReaderPrintButtons() {
+        if (viewerHost.dataset.printBridged === '1') return;
+        viewerHost.dataset.printBridged = '1';
+
+        viewerHost.addEventListener('click', event => {
+          if (!tpState.enabled || tpState.mode !== 'c') return;
+          const btn = event.target && event.target.closest
+            ? event.target.closest('#print, #printButton')
+            : null;
+          if (!btn || !viewerHost.contains(btn)) return;
+          event.preventDefault();
+          event.stopPropagation();   // 关键：捕获阶段拦截，SDK 绑在按钮上的 print 处理不会执行
+          tpPrintByReader();
+        }, true);
+      }
+
+      // 用已建好的阅读器加载文件；解析失败时按需换凭据重试一次
+      function tpOpenInFullViewer(file, config) {
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          config.parserOFDSuccess = () => { settled = true; resolve(); };
+          config.parserOFDFail = msg => { settled = true; reject(new Error(String(msg))); };
+          setTimeout(() => { if (!settled) reject(new Error('打开文档超时')); }, 30000);
+          window.parser_x.openOFD(file);
+        });
+      }
+
+      /* ------------------------------------------------------------- 主流程 */
+
+      async function tpLoadDocument(file) {
+        resetViewers();
+
+        if (tpState.mode === 'a') {
+          try {
+            const core = await tpParseOfd(file);
+            tpState.core = core;
+            await tpRenderNoReader(core);
+            showPreviewContent();
+            enablePreviewControls();
+          } catch (err) {
+            console.error('第三方解析/渲染失败', err);
+            showError(`第三方解析器处理失败：${err.message || '未知错误'}`);
+          }
+          return;
+        }
+
+        // b / c 模式：先显示宿主容器（SDK 需要测量尺寸）
+        viewerHost.style.overflow = tpState.mode === 'b' ? 'auto' : 'hidden';
+        showTpViewerHost(true);
+
+        try {
+          if (tpState.mode === 'b') {
+            const cred = await tpGetCred(false);
+            let core;
+            try {
+              core = await tpOpenBaseViewer(file, cred);
+            } catch (err) {
+              if (!tpIsCredError(err.message)) throw err;
+              showNotification('凭据无效或已过期，正在重新获取…', 'info');
+              core = await tpOpenBaseViewer(file, await tpGetCred(true));
+            }
+            tpState.core = core;
+          } else {
+            const cred = await tpGetCred(false);
+            const config = tpBuildFullViewer(cred);
+            try {
+              await tpOpenInFullViewer(file, config);
+            } catch (err) {
+              if (!tpIsCredError(err.message)) throw err;
+              showNotification('凭据无效或已过期，正在重新获取…', 'info');
+              const cred2 = await tpGetCred(true);
+              config.secret = cred2.secret;
+              config.digest = cred2.digest;
+              await tpOpenInFullViewer(file, config);
+            }
+            tpState.viewerReady = true;
+          }
+          showTpViewerHost(false);
+          enablePreviewControls();
+        } catch (err) {
+          console.error('第三方阅读器加载失败', err);
+          showError(`第三方解析器处理失败：${err.message || '未知错误'}`);
+        }
+      }
+
+      /* ------------------------------------------------------------- 打印 */
+
+      function tpPrint() {
+        if (tpState.mode === 'a') {
+          printOfdDocument();          // 与原有方式一致：直接把已渲染页面写入 iframe
+          return;
+        }
+        if (tpState.mode === 'b') {
+          tpPrintByApi();
+          return;
+        }
+        tpPrintByReader();
+      }
+
+      // 方式 b：OFDPrintApi（不依赖阅读器）
+      function tpPrintByApi() {
+        if (!tpState.core) {
+          showNotification('请先成功加载文档', 'error');
+          return;
+        }
+        if (!window.parser_x || typeof window.parser_x.OFDPrintApi !== 'function') {
+          showNotification('OFDPrintApi 不可用', 'error');
+          return;
+        }
+        if (!tpRunWithPrintWindow(() => {})) return;
+
+        tpShowProgress(true, '正在准备打印… 0%', 0);
+        const api = new window.parser_x.OFDPrintApi(percent => {
+          tpShowProgress(true, `正在准备打印… ${percent}%`, percent);
+          if (percent >= 100) setTimeout(() => tpShowProgress(false), 300);
+        });
+        tpState.printApi = api;
+        api.setOfdCore(tpState.core);
+        api.startPrint();
+      }
+
+      // 方式 c：阅读器内打印（要求已通过完整阅读器加载过文档，且页面存在 #printServiceDialog）
+      function tpPrintByReader() {
+        if (!tpState.viewerReady) {
+          showNotification('请先成功加载文档（需完整阅读器路径）', 'error');
+          return;
+        }
+        if (!window.parser_x || typeof window.parser_x.printOFD !== 'function') {
+          showNotification('printOFD 不可用', 'error');
+          return;
+        }
+        const dialog = document.getElementById('printServiceDialog');
+        if (dialog && dialog.open) {
+          showNotification('已有打印任务在进行中', 'error');
+          return;
+        }
+        tpRunWithPrintWindow(() => window.parser_x.printOFD());
+      }
+
+      // 打印产物由 SDK 自行 window.open 输出，这里在点击手势内先预开一个窗口并接管 window.open，
+      // 避免渲染耗时导致 SDK 的 window.open 超出用户手势窗口而被浏览器拦截。
+      function tpRunWithPrintWindow(run, timeoutMs) {
+        const origOpen = window.open;
+        const fallback = timeoutMs || 60000;
+        let popup = null;
+        try {
+          popup = origOpen.call(window, 'about:blank', '_blank');
+        } catch (e) {
+          popup = null;
+        }
+        if (!popup) {
+          showNotification('打印窗口被浏览器拦截，请允许本站弹出窗口后重试', 'error');
+          return false;
+        }
+        // 预置打印页基础样式（SDK 只往 body 里塞页面 div，不会自带任何样式）
+        try {
+          popup.document.write(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>打印</title>' +
+            '<style>@page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}</style>' +
+            '</head><body></body></html>'
+          );
+          popup.document.close();
+        } catch (e) { /* 忽略 */ }
+
+        let used = false;
+        let released = false;
+        let watchdog = null;
+        const patchedOpen = function() {
+          if (!used && popup && !popup.closed) {
+            used = true;
+            return popup;
+          }
+          return origOpen.apply(window, arguments);
+        };
+        const release = () => {
+          if (released) return;
+          released = true;
+          if (window.open === patchedOpen) window.open = origOpen;
+          if (watchdog) {
+            clearInterval(watchdog);
+            watchdog = null;
+          }
+          if (!used && popup && !popup.closed) popup.close();
+        };
+
+        // 保持接管状态，直到 SDK 真的取走窗口、弹窗被关掉，或兜底超时
+        window.open = patchedOpen;
+        watchdog = setInterval(() => {
+          if (used || !popup || popup.closed) release();
+        }, 200);
+        setTimeout(release, fallback);
+
+        try {
+          run();
+        } catch (e) {
+          console.error('打印调用失败', e);
+          release();
+        }
+        return true;
+      }
+
+      function tpShowProgress(show, text, percent) {
+        if (show) {
+          if (text) tpProgressText.textContent = text;
+          if (typeof percent === 'number') tpProgressBar.value = percent;
+          tpProgress.classList.remove('hidden');
+        } else {
+          tpProgress.classList.add('hidden');
+          tpProgressBar.value = 0;
+        }
       }
     });
   </script>
