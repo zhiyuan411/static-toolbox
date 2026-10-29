@@ -660,6 +660,9 @@
       let uploadedFiles = [];
       let currentFileIndex = -1;
       let currentZoom = 100;
+      // 加载序号：每次发起新预览自增，用于丢弃过期的异步结果，
+      // 避免连续打开多个文件时旧文件的渲染结果后到、覆盖掉新文件
+      let loadToken = 0;
       const minZoom = 50;
       const maxZoom = 200;
       const zoomStep = 10;
@@ -800,21 +803,25 @@
           return;
         }
 
-        // 添加到上传文件列表
+        // 添加到上传文件列表，并记录本次打开的最后一个文件的位置
+        let lastOpenedIndex = -1;
         ofdFiles.forEach(file => {
           // 检查是否已存在相同文件
           const existingIndex = uploadedFiles.findIndex(f => f.name === file.name && f.size === file.size);
           if (existingIndex === -1) {
             uploadedFiles.push(file);
+            lastOpenedIndex = uploadedFiles.length - 1;
+          } else {
+            // 已存在则不重复添加，但仍作为本次“打开”的目标
+            lastOpenedIndex = existingIndex;
           }
         });
 
-        // 更新文件列表
-        updateFileList();
-
-        // 如果是第一次上传文件，自动选择第一个
-        if (currentFileIndex === -1 && uploadedFiles.length > 0) {
-          selectFile(0);
+        // 自动切换到本次打开的文件；列表状态由 selectFile 内部刷新
+        if (lastOpenedIndex >= 0) {
+          selectFile(lastOpenedIndex);
+        } else {
+          updateFileList();
         }
 
         // 重置文件输入
@@ -930,10 +937,11 @@
       /* ============================================================ 统一入口 */
 
       function loadDocument(file) {
+        const token = ++loadToken;
         if (tpState.enabled) {
-          return tpLoadDocument(file);
+          return tpLoadDocument(file, token);
         }
-        return parseOfdFile(file);
+        return parseOfdFile(file, token);
       }
 
       // 清理两种渲染结果（本仓库 ofd.js / 第三方）
@@ -951,7 +959,7 @@
 
       /* ================================================== 本仓库 ofd.js 解析 */
 
-      function parseOfdFile(file) {
+      function parseOfdFile(file, token) {
         try {
           // 重置缩放
           currentZoom = 100;
@@ -960,6 +968,7 @@
           // 创建FileReader读取文件为ArrayBuffer
           const reader = new FileReader();
           reader.onload = function(e) {
+            if (token !== loadToken) return; // 已有更新的加载任务，丢弃本次结果
             const arrayBuffer = e.target.result;
 
             // 确保ofd库已正确加载
@@ -975,6 +984,7 @@
             window.ofd.parseOfdDocument({
               ofd: arrayBuffer,
               success(parsedDocs) {
+                if (token !== loadToken) return;
                 try {
                   console.log('✅ 解析成功，开始渲染...', parsedDocs);
 
@@ -1590,17 +1600,19 @@
 
       /* ------------------------------------------------------------- 主流程 */
 
-      async function tpLoadDocument(file) {
+      async function tpLoadDocument(file, token) {
         resetViewers();
 
         if (tpState.mode === 'a') {
           try {
             const core = await tpParseOfd(file);
+            if (token !== loadToken) return; // 已有更新的加载任务，丢弃本次结果
             tpState.core = core;
             await tpRenderNoReader(core);
             showPreviewContent();
             enablePreviewControls();
           } catch (err) {
+            if (token !== loadToken) return;
             console.error('第三方解析/渲染失败', err);
             showError(`第三方解析器处理失败：${err.message || '未知错误'}`);
           }
@@ -1622,6 +1634,7 @@
               showNotification('凭据无效或已过期，正在重新获取…', 'info');
               core = await tpOpenBaseViewer(file, await tpGetCred(true));
             }
+            if (token !== loadToken) return;
             tpState.core = core;
           } else {
             const cred = await tpGetCred(false);
@@ -1636,11 +1649,13 @@
               config.digest = cred2.digest;
               await tpOpenInFullViewer(file, config);
             }
+            if (token !== loadToken) return;
             tpState.viewerReady = true;
           }
           showTpViewerHost(false);
           enablePreviewControls();
         } catch (err) {
+          if (token !== loadToken) return;
           console.error('第三方阅读器加载失败', err);
           showError(`第三方解析器处理失败：${err.message || '未知错误'}`);
         }
