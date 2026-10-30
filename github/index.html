@@ -217,6 +217,13 @@
     td.col-desc { max-width: 520px; }
     td.col-desc-zh { max-width: 480px; }
 
+    tbody td img {
+        max-height: 22px;
+        max-width: 22px;
+        vertical-align: -4px;
+        margin: 0 1px;
+    }
+
     a { color: var(--primary); text-decoration: none; font-weight: 600; }
     a:hover { text-decoration: underline; }
 
@@ -364,6 +371,89 @@
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // ---------------------------------------------------------------
+    // 描述富文本：只把白名单标签（a / img）还原成真实元素，其余一律按字面量显示。
+    // 两个原因：
+    //   1) 译文里可能出现被当作文字引用的标签名（如「使用 <canvas> 标签...」），
+    //      直接当 HTML 渲染会被浏览器吞掉；
+    //   2) 描述来自 GitHub + 翻译接口，属于不可信外部内容，必须防 XSS。
+    // 处理方式：全部先 esc，再按白名单重建标签，且属性只允许白名单内的安全值。
+    // ---------------------------------------------------------------
+    var RICH_TAGS = { a: 1, img: 1 };
+    var TAG_RE = /<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
+    var ATTR_RE = /([a-zA-Z_:][-\w:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+    var SAFE_URL = /^(https?:\/\/|mailto:)/i;
+
+    function decodeBasic(s) {
+        return String(s)
+            .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"').replace(/&#0*39;|&#x0*27;/gi, "'")
+            .replace(/&amp;/g, '&');
+    }
+
+    function parseAttrs(raw) {
+        var out = {}, m;
+        ATTR_RE.lastIndex = 0;
+        while ((m = ATTR_RE.exec(raw)) !== null) {
+            out[m[1].toLowerCase()] = m[2] !== undefined ? m[2]
+                                    : (m[3] !== undefined ? m[3] : m[4]);
+        }
+        return out;
+    }
+
+    function renderTag(isClose, name, attrs, raw) {
+        if (!RICH_TAGS[name]) {
+            return esc(raw);                     // 非白名单：原样字面量显示
+        }
+        if (name === 'img') {
+            var src = decodeBasic(attrs.src || '').trim();
+            if (!src || !SAFE_URL.test(src)) {
+                return esc(raw);
+            }
+            return '<img src="' + esc(src) + '" alt="' + esc(decodeBasic(attrs.alt || '')) +
+                   '" title="' + esc(decodeBasic(attrs.title || '')) + '" loading="lazy">';
+        }
+        if (isClose) {
+            return '</a>';
+        }
+        var href = decodeBasic(attrs.href || '').trim();
+        if (!href || !SAFE_URL.test(href)) {      // 挡掉 javascript: / data: 等
+            return esc(raw);
+        }
+        return '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">';
+    }
+
+    function rich(value) {
+        if (!value) return '<span class="muted">-</span>';
+        var html = '', last = 0, m, openA = false;
+        TAG_RE.lastIndex = 0;
+        while ((m = TAG_RE.exec(value)) !== null) {
+            html += esc(value.slice(last, m.index));
+            last = m.index + m[0].length;
+            var isClose = m[1] === '/';
+            var name = m[2].toLowerCase();
+            if (name === 'a') {
+                if (isClose && openA) {
+                    html += '</a>';
+                    openA = false;
+                } else if (!isClose && !openA) {
+                    var piece = renderTag(false, name, parseAttrs(m[3]), m[0]);
+                    if (piece.charAt(0) === '<') {
+                        openA = true;
+                    }
+                    html += piece;
+                } else {
+                    html += esc(m[0]);           // 嵌套/多余闭合：字面量
+                }
+            } else {
+                html += renderTag(isClose, name, parseAttrs(m[3]), m[0]);
+            }
+        }
+        html += esc(value.slice(last));
+        if (openA) html += '</a>';
+        return html;
+    }
+
     function pad(n) { return n < 10 ? '0' + n : String(n); }
 
     function fmtDate(s) {
@@ -394,13 +484,11 @@
                        esc(full) + '</a>';
             }
             case 'desc_display':
-                return row._desc_display ? esc(row._desc_display)
-                                         : '<span class="muted">-</span>';
+                return rich(row._desc_display);
             case 'desc':
-                return row.hl_trunc_description ? esc(row.hl_trunc_description)
-                                                : '<span class="muted">-</span>';
+                return rich(row.hl_trunc_description);
             case 'desc_zh':
-                return row._desc_zh ? esc(row._desc_zh) : '<span class="muted">-</span>';
+                return rich(row._desc_zh);
             case 'archived':
                 return row.archived
                     ? '<span class="badge badge-warn">已归档</span>'
