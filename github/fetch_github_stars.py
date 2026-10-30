@@ -44,7 +44,7 @@ DEFAULT_PAGES = 50          # 默认抓取页数（50 页 × 10 条 = 500 条最
 PER_PAGE = 10               # GitHub 搜索每页结果条数（用于计算全局排名）
 START_PAGE = 1              # 起始页码                                      -> --start-page
 REQUEST_INTERVAL = 1.0      # 每页抓取之间的间隔（秒）                        -> --interval
-REQUEST_TIMEOUT = 30        # 单次页面请求超时（秒）                          -> --timeout
+REQUEST_TIMEOUT = 10        # 单次页面请求超时（秒）                          -> --timeout
 
 # ---- 调试相关 ----
 DEBUG = False               # 调试模式：打印详细过程                          -> -d/--debug
