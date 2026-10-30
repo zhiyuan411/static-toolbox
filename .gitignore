@@ -6,37 +6,39 @@ json
 qr
 
 
-# 但不忽略需要同步的文件夹（用!排除）
+# 但不忽略需要同步的文件夹（用 ! 排除，/** 表示递归包含该目录下所有层级）
 !.gitignore
 !base64
-!base64/*
+!base64/**
 !code-formatting
-!code-formatting/*
+!code-formatting/**
 !encoding
-!encoding/*
+!encoding/**
 !hash
-!hash/*
+!hash/**
 !zip-base64
-!zip-base64/*
+!zip-base64/**
 !diff
-!diff/*
+!diff/**
 !timestamp
-!timestamp/*
+!timestamp/**
 !ip
-!ip/*
+!ip/**
 !rain
-!rain/*
+!rain/**
 !fontawesome
-!fontawesome/*
+!fontawesome/**
 !md
-!md/*
+!md/**
 !input
-!input/*
+!input/**
 !ofd
-!ofd/*
+!ofd/**
 !bill2word
-!bill2word/*
+!bill2word/**
 !github
-!github/*
+!github/**
 
 
+# 全局忽略的常见产物（必须放在上面的 ! 规则之后才会生效，因为后写的规则优先）
+__pycache__/
