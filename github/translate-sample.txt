@@ -1,0 +1,18 @@
+[ecs-user@iZ2ze2ssprug783bjpnuqoZ ~]$ curl -s https://index-translate.bilibili.com/v1/chat/completions \
+>   -H "Content-Type: application/json" \
+>   -d '{
+>     "model": "Index-Translate-35B-A3B",
+>     "messages": [
+>       {
+>         "role": "user",
+>         "content": "翻译为简体中文，只输出翻译结果，不要输出其他任何内容：\n\nA list of Free Software network services and web applications which can be hosted on your own servers"
+>       }
+>     ],
+>     "temperature": 0.3
+>   }'
+{"id":"chatcmpl-a92833d7457a87bd","object":"chat.completion","created":1793345547,"model":"Index-Translate-35B-A3B","choices":[{"index":0,"message":{"role":"assistant","content":"可在您自己的服务器上托管的自由软件网络服务和网络应用列表","refusal":null,"annotations":null,"audio":null,"function_call":null,"reasoning":null},"logprobs":null,"finish_reason":"stop","stop_reason":248046,"token_ids":null,"routed_experts":null}],"service_tier":null,"system_fingerprint":"vllm-0.23.0-tp2-ep-cb87e74d","usage":{"prompt_tokens":46,"total_tokens":59,"completion_tokens":13,"prompt_tokens_details":null,"completion_tokens_details":null},"prompt_logprobs":null,"prompt_token_ids":null,"prompt_text":null,"kv_transfer_params":null}[ecs-user@iZ2ze2ssprug783bjpnuqoZ ~]$
+
+
+[ecs-user@iZ2ze2ssprug783bjpnuqoZ ~]$ curl -s "https://api.mymemory.translated.net/get?q=A%20list%20of%20Free%20Software%20network%20services%20and%20web%20applications%20which%20can%20be%20hosted%20on%20your%20own%20servers&langpair=en|zh"
+
+{"responseData":{"translatedText":"\u53ef\u6258\u7ba1\u5728\u60a8\u81ea\u5df1\u7684\u670d\u52a1\u5668\u4e0a\u7684\u514d\u8d39\u8f6f\u4ef6\u7f51\u7edc\u670d\u52a1\u548cWeb\u5e94\u7528\u7a0b\u5e8f\u5217\u8868","match":0.85},"quotaFinished":false,"mtLangSupported":null,"responseDetails":"","responseStatus":200,"responderId":null,"exception_code":null,"matches":[{"id":0,"segment":"A list of Free Software network services and web applications which can be hosted on your own servers","translation":"\u53ef\u6258\u7ba1\u5728\u60a8\u81ea\u5df1\u7684\u670d\u52a1\u5668\u4e0a\u7684\u514d\u8d39\u8f6f\u4ef6\u7f51\u7edc\u670d\u52a1\u548cWeb\u5e94\u7528\u7a0b\u5e8f\u5217\u8868","source":"en-GB","target":"zh-CN","quality":70,"reference":"Machine Translation.","usage-count":2,"subject":false,"created-by":"MT!","last-updated-by":"MT!","create-date":"2026-10-30 07:36:55","last-update-date":"2026-10-30 07:36:55","match":0.85,"penalty":null,"model":"neural"}]}[ecs-user@iZ2ze2ssprug783bjpnuqoZ ~]$

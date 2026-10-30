@@ -1,0 +1,38 @@
+{
+  "id": "36633370",
+  "archived": false,
+  "color": null,
+  "followers": 331589,
+  "has_funding_file": false,
+  "hl_name": "awesome-selfhosted/awesome-selfhosted",
+  "hl_trunc_description": "A list of Free Software network services and web applications which can be hosted on your own servers",
+  "language": null,
+  "mirror": false,
+  "owned_by_organization": true,
+  "public": true,
+  "repo": {
+    "repository": {
+      "id": 36633370,
+      "name": "awesome-selfhosted",
+      "owner_id": 24270415,
+      "owner_login": "awesome-selfhosted",
+      "updated_at": "2026-10-27T22:58:35.034Z",
+      "has_issues": false
+    }
+  },
+  "sponsorable": false,
+  "topics": [
+    "awesome",
+    "cloud",
+    "privacy",
+    "selfhosted",
+    "hosting",
+    "self-hosted",
+    "free-software",
+    "awesome-list"
+  ],
+  "type": "Public",
+  "help_wanted_issues_count": 0,
+  "good_first_issue_issues_count": 0,
+  "starred_by_current_user": false
+}

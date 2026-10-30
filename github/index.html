@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub 高星仓库榜单</title>
+<style>
+    :root {
+        --bg: #f6f7f9;
+        --card: #ffffff;
+        --border: #e5e7eb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --primary: #2563eb;
+        --primary-soft: #eff6ff;
+        --warn: #b45309;
+        --warn-soft: #fef3c7;
+        --ok: #047857;
+        --ok-soft: #d1fae5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .wrap { max-width: 1400px; margin: 0 auto; }
+
+    header.page-head {
+        margin-bottom: 16px;
+    }
+    header.page-head h1 {
+        margin: 0 0 6px;
+        font-size: 24px;
+        font-weight: 650;
+        letter-spacing: .2px;
+    }
+    header.page-head .sub {
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+    }
+
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+    }
+
+    .field {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .field label {
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    input[type="text"], select {
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        outline: none;
+    }
+    input[type="text"] { width: 240px; }
+    input[type="text"]:focus, select:focus { border-color: var(--primary); }
+
+    .btn {
+        height: 34px;
+        padding: 0 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+        transition: background .15s, border-color .15s;
+    }
+    .btn:hover { background: #f3f4f6; }
+    .btn.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+    }
+    .btn.primary:hover { background: #1d4ed8; }
+
+    .spacer { flex: 1 1 auto; }
+
+    .stats {
+        display: flex;
+        gap: 18px;
+        color: var(--muted);
+        font-size: 13px;
+    }
+    .stats b { color: var(--text); font-weight: 600; }
+
+    .col-panel {
+        position: relative;
+    }
+    .col-pop {
+        position: absolute;
+        z-index: 20;
+        top: 40px;
+        right: 0;
+        width: 320px;
+        max-height: 380px;
+        overflow: auto;
+        padding: 12px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 10px 28px rgba(16, 24, 40, .12);
+        display: none;
+    }
+    .col-pop.open { display: block; }
+    .col-pop .pop-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 12px;
+        color: var(--muted);
+    }
+    .col-pop .pop-head button {
+        border: none;
+        background: none;
+        color: var(--primary);
+        cursor: pointer;
+        font-size: 12px;
+        padding: 2px 4px;
+    }
+    .col-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 8px;
+    }
+    .col-grid label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 2px;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 6px;
+    }
+    .col-grid label:hover { background: #f9fafb; }
+    .col-grid input { accent-color: var(--primary); }
+
+    .table-box {
+        overflow: auto;
+        max-height: calc(100vh - 230px);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    thead th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f9fafb;
+        border-bottom: 1px solid var(--border);
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        white-space: nowrap;
+    }
+    tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #f1f2f4;
+        vertical-align: top;
+    }
+    tbody tr:hover td { background: #fafbfc; }
+    tbody tr:nth-child(even) td { background: #fcfcfd; }
+    tbody tr:nth-child(even):hover td { background: #f8fafc; }
+
+    td.col-rank {
+        width: 60px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+    }
+    td.col-stars {
+        width: 100px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+    td.col-updated { width: 140px; white-space: nowrap; color: var(--muted); }
+    td.col-archived { width: 90px; }
+    td.col-desc { max-width: 520px; }
+    td.col-desc-zh { max-width: 480px; }
+
+    a { color: var(--primary); text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+
+    .badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 20px;
+    }
+    .badge-warn { background: var(--warn-soft); color: var(--warn); }
+    .badge-ok { background: var(--ok-soft); color: var(--ok); }
+
+    .chip {
+        display: inline-block;
+        margin: 0 4px 4px 0;
+        padding: 1px 8px;
+        border-radius: 6px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-size: 12px;
+    }
+
+    .muted { color: #9ca3af; }
+
+    .state {
+        padding: 56px 20px;
+        text-align: center;
+        color: var(--muted);
+    }
+    .state .title { font-size: 15px; color: var(--text); margin-bottom: 6px; }
+    .state code {
+        background: #f3f4f6;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+
+    @media (max-width: 720px) {
+        body { padding: 12px; }
+        input[type="text"] { width: 160px; }
+        .stats { gap: 12px; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <header class="page-head">
+        <h1>GitHub 高星仓库榜单</h1>
+        <div class="sub">数据由 <code>fetch_github_stars.py</code> 抓取生成，页面以相对路径读取同目录下的 jsonl 文件。</div>
+    </header>
+
+    <div class="card toolbar">
+        <div class="field">
+            <label for="kw">关键字</label>
+            <input type="text" id="kw" placeholder="名称 / 描述 / 语言 / 主题" autocomplete="off">
+        </div>
+        <div class="field">
+            <label for="arch">归档</label>
+            <select id="arch">
+                <option value="all">全部</option>
+                <option value="no">未归档</option>
+                <option value="yes">已归档</option>
+            </select>
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="stats">
+            <span>总计 <b id="stat-total">0</b> 条</span>
+            <span>已归档 <b id="stat-archived">0</b></span>
+            <span>当前显示 <b id="stat-shown">0</b></span>
+            <span>数据时间 <b id="stat-time">-</b></span>
+        </div>
+
+        <div class="col-panel">
+            <button class="btn" id="col-btn">显示列</button>
+            <div class="col-pop" id="col-pop">
+                <div class="pop-head">
+                    <span>选择要展示的列</span>
+                    <span>
+                        <button type="button" id="col-all">全选</button>
+                        <button type="button" id="col-default">默认</button>
+                    </span>
+                </div>
+                <div class="col-grid" id="col-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card table-box">
+        <table id="tbl">
+            <thead><tr id="thead-row"></tr></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+        <div class="state" id="state"></div>
+    </div>
+
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // 数据文件：与 fetch_github_stars.py 的 OUTPUT_FILE 保持一致（相对路径）
+    var DATA_URL = 'github_stars.jsonl';
+
+    var COLUMNS = [
+        { key: 'rank',        label: '排名',           def: true,  cls: 'col-rank' },
+        { key: 'name',        label: '名称',           def: true },
+        { key: 'desc',        label: '描述',           def: true,  cls: 'col-desc' },
+        { key: 'archived',    label: '是否已归档',      def: true,  cls: 'col-archived' },
+        { key: 'stars',       label: '星数',           def: true,  cls: 'col-stars' },
+        { key: 'updated',     label: '更新时间',        def: true,  cls: 'col-updated' },
+        { key: 'desc_zh',     label: '中文描述',        def: false, cls: 'col-desc-zh' },
+        { key: 'language',    label: '语言',           def: false },
+        { key: 'topics',      label: 'Topics',        def: false },
+        { key: 'owner',       label: '所有者',         def: false },
+        { key: 'type',        label: '类型',           def: false },
+        { key: 'mirror',      label: '镜像',           def: false },
+        { key: 'sponsorable', label: '可赞助',         def: false },
+        { key: 'funding',     label: '资助文件',        def: false },
+        { key: 'help_wanted', label: 'Help Wanted',   def: false },
+        { key: 'good_first',  label: 'Good First',    def: false },
+        { key: 'page',        label: '来源页',         def: false },
+        { key: 'id',          label: '仓库 ID',        def: false }
+    ];
+
+    var state = {
+        rows: [],
+        visible: {},
+        keyword: '',
+        archived: 'all'
+    };
+
+    COLUMNS.forEach(function (c) { state.visible[c.key] = c.def; });
+
+    var $ = function (id) { return document.getElementById(id); };
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+    function fmtDate(s) {
+        if (!s) return '-';
+        var d = new Date(s);
+        if (isNaN(d.getTime())) return esc(s);
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+               ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function fmtNum(n) {
+        return (typeof n === 'number') ? n.toLocaleString() : '-';
+    }
+
+    function repoOf(row) {
+        return (row.repo && row.repo.repository) || {};
+    }
+
+    function cellHtml(row, key, index) {
+        var repo = repoOf(row);
+        switch (key) {
+            case 'rank':
+                return String(row._rank != null ? row._rank : index + 1);
+            case 'name': {
+                var full = row.hl_name || repo.name || '';
+                if (!full) return '-';
+                return '<a href="https://github.com/' + esc(full) + '" target="_blank" rel="noopener">' +
+                       esc(full) + '</a>';
+            }
+            case 'desc':
+                return row.hl_trunc_description ? esc(row.hl_trunc_description)
+                                                : '<span class="muted">-</span>';
+            case 'desc_zh':
+                return row._desc_zh ? esc(row._desc_zh) : '<span class="muted">-</span>';
+            case 'archived':
+                return row.archived
+                    ? '<span class="badge badge-warn">已归档</span>'
+                    : '<span class="badge badge-ok">否</span>';
+            case 'stars':
+                return fmtNum(row.followers);
+            case 'updated':
+                return fmtDate(repo.updated_at || row.updated_at);
+            case 'language':
+                return row.language ? esc(row.language) : '<span class="muted">-</span>';
+            case 'topics': {
+                var t = Array.isArray(row.topics) ? row.topics : [];
+                if (!t.length) return '<span class="muted">-</span>';
+                return t.slice(0, 8).map(function (x) {
+                    return '<span class="chip">' + esc(x) + '</span>';
+                }).join('');
+            }
+            case 'owner':
+                return esc(repo.owner_login || (row.hl_name || '').split('/')[0] || '-');
+            case 'type':
+                return esc(row.type || '-');
+            case 'mirror':
+                return row.mirror ? '是' : '否';
+            case 'sponsorable':
+                return row.sponsorable ? '是' : '否';
+            case 'funding':
+                return row.has_funding_file ? '有' : '无';
+            case 'help_wanted':
+                return fmtNum(row.help_wanted_issues_count);
+            case 'good_first':
+                return fmtNum(row.good_first_issue_issues_count);
+            case 'page':
+                return row._page != null ? String(row._page) : '-';
+            case 'id':
+                return row.id != null ? esc(String(row.id)) : '-';
+        }
+        return '-';
+    }
+
+    function matches(row) {
+        if (state.archived === 'yes' && !row.archived) return false;
+        if (state.archived === 'no' && row.archived) return false;
+
+        var kw = state.keyword.trim().toLowerCase();
+        if (!kw) return true;
+
+        var repo = repoOf(row);
+        var parts = [
+            row.hl_name, row.hl_trunc_description, row._desc_zh,
+            row.language, repo.owner_login,
+            Array.isArray(row.topics) ? row.topics.join(' ') : ''
+        ];
+        return parts.filter(Boolean).join(' ').toLowerCase().indexOf(kw) >= 0;
+    }
+
+    function activeColumns() {
+        return COLUMNS.filter(function (c) { return state.visible[c.key]; });
+    }
+
+    function render() {
+        var cols = activeColumns();
+        var rows = state.rows.filter(matches);
+
+        $('thead-row').innerHTML = cols.map(function (c) {
+            return '<th>' + esc(c.label) + '</th>';
+        }).join('');
+
+        if (!rows.length) {
+            $('tbody').innerHTML = '';
+            $('state').style.display = 'block';
+            $('state').innerHTML = state.rows.length
+                ? '<div class="title">没有符合条件的结果</div><div>试试调整关键字或归档筛选</div>'
+                : '<div class="title">暂无数据</div><div>请先运行脚本生成 <code>' +
+                  esc(DATA_URL) + '</code></div>';
+        } else {
+            $('state').style.display = 'none';
+            $('tbody').innerHTML = rows.map(function (row, i) {
+                var tds = cols.map(function (c) {
+                    var cls = c.cls ? ' class="' + c.cls + '"' : '';
+                    return '<td' + cls + '>' + cellHtml(row, c.key, i) + '</td>';
+                }).join('');
+                return '<tr>' + tds + '</tr>';
+            }).join('');
+        }
+
+        var archivedCount = state.rows.filter(function (r) { return r.archived; }).length;
+        $('stat-total').textContent = state.rows.length;
+        $('stat-archived').textContent = archivedCount;
+        $('stat-shown').textContent = rows.length;
+    }
+
+    function applyText(text) {
+        var rows = [];
+        var bad = 0;
+        text.split(/\r?\n/).forEach(function (line) {
+            line = line.trim();
+            if (!line) return;
+            try {
+                var obj = JSON.parse(line);
+                if (obj && typeof obj === 'object') rows.push(obj);
+                else bad++;
+            } catch (e) { bad++; }
+        });
+
+        state.rows = rows;
+
+        var latest = '';
+        rows.forEach(function (r) {
+            var t = r._fetched_at || repoOf(r).updated_at || '';
+            if (t > latest) latest = t;
+        });
+        $('stat-time').textContent = latest ? fmtDate(latest) : '-';
+
+        render();
+        if (bad) console.warn('跳过无法解析的行：' + bad);
+    }
+
+    function showError(err) {
+        state.rows = [];
+        render();
+        $('state').style.display = 'block';
+        $('state').innerHTML =
+            '<div class="title">无法加载 <code>' + esc(DATA_URL) + '</code></div>' +
+            '<div>' + esc(err && err.message ? err.message : err) + '</div>' +
+            '<div style="margin-top:12px">若为本地 file:// 打开被浏览器限制，可通过 HTTP 访问，' +
+            '或直接选择文件：<br><input type="file" id="file-picker" accept=".jsonl,.json,.txt" ' +
+            'style="margin-top:10px"></div>';
+
+        var picker = $('file-picker');
+        if (picker) {
+            picker.addEventListener('change', function () {
+                var f = picker.files && picker.files[0];
+                if (!f) return;
+                var reader = new FileReader();
+                reader.onload = function () { applyText(String(reader.result)); };
+                reader.readAsText(f, 'utf-8');
+            });
+        }
+    }
+
+    function buildColPanel() {
+        var grid = $('col-grid');
+        grid.innerHTML = COLUMNS.map(function (c) {
+            return '<label><input type="checkbox" data-key="' + c.key + '"' +
+                   (state.visible[c.key] ? ' checked' : '') + '> ' + esc(c.label) + '</label>';
+        }).join('');
+
+        grid.addEventListener('change', function (e) {
+            var key = e.target.getAttribute('data-key');
+            if (key) { state.visible[key] = e.target.checked; render(); }
+        });
+
+        $('col-btn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            $('col-pop').classList.toggle('open');
+        });
+        $('col-all').addEventListener('click', function () {
+            COLUMNS.forEach(function (c) { state.visible[c.key] = true; });
+            syncColPanel(); render();
+        });
+        $('col-default').addEventListener('click', function () {
+            COLUMNS.forEach(function (c) { state.visible[c.key] = c.def; });
+            syncColPanel(); render();
+        });
+        document.addEventListener('click', function (e) {
+            var pop = $('col-pop');
+            if (pop.classList.contains('open') && !pop.contains(e.target)) {
+                pop.classList.remove('open');
+            }
+        });
+    }
+
+    function syncColPanel() {
+        var boxes = $('col-grid').querySelectorAll('input[data-key]');
+        Array.prototype.forEach.call(boxes, function (box) {
+            box.checked = !!state.visible[box.getAttribute('data-key')];
+        });
+    }
+
+    var kwTimer = null;
+    function bindFilters() {
+        $('kw').addEventListener('input', function (e) {
+            var v = e.target.value;
+            clearTimeout(kwTimer);
+            kwTimer = setTimeout(function () { state.keyword = v; render(); }, 150);
+        });
+        $('arch').addEventListener('change', function (e) {
+            state.archived = e.target.value;
+            render();
+        });
+    }
+
+    function load() {
+        fetch(DATA_URL, { cache: 'no-store' })
+            .then(function (res) {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.text();
+            })
+            .then(applyText)
+            .catch(showError);
+    }
+
+    buildColPanel();
+    bindFilters();
+    load();
+})();
+</script>
+</body>
+</html>
