@@ -326,13 +326,14 @@
     var DATA_URL = 'github_stars.jsonl';
 
     var COLUMNS = [
-        { key: 'rank',        label: '排名',           def: true,  cls: 'col-rank' },
-        { key: 'name',        label: '名称',           def: true },
-        { key: 'desc',        label: '描述',           def: true,  cls: 'col-desc' },
-        { key: 'archived',    label: '是否已归档',      def: true,  cls: 'col-archived' },
-        { key: 'stars',       label: '星数',           def: true,  cls: 'col-stars' },
-        { key: 'updated',     label: '更新时间',        def: true,  cls: 'col-updated' },
-        { key: 'desc_zh',     label: '中文描述',        def: false, cls: 'col-desc-zh' },
+        { key: 'rank',         label: '排名',           def: true,  cls: 'col-rank' },
+        { key: 'name',         label: '名称',           def: true },
+        { key: 'desc_display', label: '描述',           def: true,  cls: 'col-desc' },
+        { key: 'archived',     label: '是否已归档',      def: true,  cls: 'col-archived' },
+        { key: 'stars',        label: '星数',           def: true,  cls: 'col-stars' },
+        { key: 'updated',      label: '更新时间',        def: true,  cls: 'col-updated' },
+        { key: 'desc',         label: '描述原文',        def: false, cls: 'col-desc' },
+        { key: 'desc_zh',      label: '描述译文',        def: false, cls: 'col-desc-zh' },
         { key: 'language',    label: '语言',           def: false },
         { key: 'topics',      label: 'Topics',        def: false },
         { key: 'owner',       label: '所有者',         def: false },
@@ -392,6 +393,9 @@
                 return '<a href="https://github.com/' + esc(full) + '" target="_blank" rel="noopener">' +
                        esc(full) + '</a>';
             }
+            case 'desc_display':
+                return row._desc_display ? esc(row._desc_display)
+                                         : '<span class="muted">-</span>';
             case 'desc':
                 return row.hl_trunc_description ? esc(row.hl_trunc_description)
                                                 : '<span class="muted">-</span>';
@@ -445,7 +449,7 @@
 
         var repo = repoOf(row);
         var parts = [
-            row.hl_name, row.hl_trunc_description, row._desc_zh,
+            row.hl_name, row.hl_trunc_description, row._desc_display, row._desc_zh,
             row.language, repo.owner_login,
             Array.isArray(row.topics) ? row.topics.join(' ') : ''
         ];
