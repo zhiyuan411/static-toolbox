@@ -26,6 +26,8 @@ import gzip
 import json
 import os
 import re
+import socket
+import ssl
 import sys
 import time
 import urllib.error
@@ -47,6 +49,10 @@ REQUEST_TIMEOUT = 30        # 单次页面请求超时（秒）                 
 # ---- 调试相关 ----
 DEBUG = False               # 调试模式：打印详细过程                          -> -d/--debug
 DEFAULT_LIMIT = 0           # 每页最多处理的结果条数（0 表示全部）            -> --limit
+# 强制走 IPv4：很多云服务器 IPv6 不通（curl 有 Happy-Eyeballs 会自动回落 IPv4，
+# Python 不会，于是每次都卡满超时）。排查时可用 --diagnose 确认。
+FORCE_IPV4 = True           #                                                -> --force-ipv4/--no-force-ipv4
+DIAGNOSE_TIMEOUT = 10       # 网络自检（--diagnose）单项超时秒数
 
 # ---- 搜索条件（SEARCH_QUERY 可写已编码形式，也可写 stars:>1 这类原始形式）----
 BASE_URL = "https://github.com/search"
@@ -86,6 +92,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # 运行期实际生效的值（由命令行参数覆盖配置区默认值）
 runtime_timeout = REQUEST_TIMEOUT   # <- --timeout
 runtime_debug = DEBUG               # <- -d/--debug
+
+# 保存未打补丁的 getaddrinfo，供 --diagnose 分别探测 IPv4/IPv6
+_ORIG_GETADDRINFO = socket.getaddrinfo
 
 _EMBEDDED_DATA_RE = re.compile(
     r'<script[^>]*data-target="react-app\.embeddedData"[^>]*>', re.I)
@@ -452,6 +461,108 @@ def make_failure(page, url, reason):
 
 
 # ============================================================
+#                        网络自检
+# ============================================================
+
+def apply_ipv4_preference(enabled):
+    """强制域名解析只返回 IPv4，规避 IPv6 黑洞导致的 TLS 握手超时。"""
+    if not enabled:
+        return
+
+    def _getaddrinfo(host, port, family=0, socktype=0, proto=0, flags=0):
+        return _ORIG_GETADDRINFO(host, port, socket.AF_INET, socktype, proto, flags)
+
+    socket.getaddrinfo = _getaddrinfo
+
+
+def tls_probe(host, family, port=443):
+    """对指定地址族做一次 TCP + TLS 握手，返回结论字符串。"""
+    label = "IPv4" if family == socket.AF_INET else "IPv6"
+    try:
+        infos = _ORIG_GETADDRINFO(host, port, family, socket.SOCK_STREAM)
+    except Exception as exc:
+        return "%s 解析失败（%s）" % (label, exc)
+    if not infos:
+        return "%s 无地址记录" % label
+
+    started = time.time()
+    sock = None
+    try:
+        address = (str(infos[0][4][0]), int(infos[0][4][1]))
+        sock = socket.create_connection(address, timeout=DIAGNOSE_TIMEOUT)
+        context = ssl.create_default_context()
+        sock = context.wrap_socket(sock, server_hostname=host)
+        version = sock.version()
+        sock.close()
+        return "%s 成功（%s，耗时 %.2fs）" % (label, version, time.time() - started)
+    except Exception as exc:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+        return "%s 失败（%s: %s，耗时 %.2fs）" % (
+            label, type(exc).__name__, exc, time.time() - started)
+
+
+def diagnose_network(query):
+    """网络自检：代理 -> DNS(IPv4/IPv6) -> TLS 握手 -> 搜索页 -> 翻译接口。"""
+    host = urllib.parse.urlparse(BASE_URL).hostname or BASE_URL
+    log("=" * 56)
+    log("网络自检开始（单项超时 %ss，强制 IPv4 = %s）"
+        % (DIAGNOSE_TIMEOUT, socket.getaddrinfo is not _ORIG_GETADDRINFO))
+
+    proxies = urllib.request.getproxies()
+    log("1) 代理：%s" % (proxies if proxies else "未检测到（直连）"))
+    env_proxies = {k: v for k, v in os.environ.items() if "proxy" in k.lower()}
+    log("   环境变量：%s" % (env_proxies if env_proxies else "无"))
+
+    for label, family in (("IPv4", socket.AF_INET), ("IPv6", socket.AF_INET6)):
+        try:
+            infos = _ORIG_GETADDRINFO(host, 443, family, socket.SOCK_STREAM)
+            log("2) DNS %s：%s" % (label, ", ".join(str(i[4][0]) for i in infos[:4])
+                                   or "无记录"))
+        except Exception as exc:
+            log("2) DNS %s：解析失败（%s）" % (label, exc))
+
+    for family in (socket.AF_INET, socket.AF_INET6):
+        log("3) TLS %s" % tls_probe(host, family))
+
+    url = build_url(1, query)
+    started = time.time()
+    try:
+        body = http_request(url, timeout=DIAGNOSE_TIMEOUT)
+        html = body.decode("utf-8", "replace")
+        results, meta = extract_results(html)
+        log("4) 搜索页 成功（%d 字节，%.2fs，解析 %d 条，命中 %s 条 / %s 页）"
+            % (len(body), time.time() - started, len(results),
+               meta.get("result_count"), meta.get("page_count")))
+    except Exception as exc:
+        log("4) 搜索页 失败（%s: %s，耗时 %.2fs）"
+            % (type(exc).__name__, exc, time.time() - started))
+
+    for name, func in (("bilibili", translate_by_bilibili),
+                       ("mymemory", translate_by_mymemory)):
+        started = time.time()
+        try:
+            out = func("Hello world")
+            log("5) 翻译[%s] %s（%.2fs）"
+                % (name, ("成功：" + out[:40]) if out else "返回空",
+                   time.time() - started))
+        except Exception as exc:
+            log("5) 翻译[%s] 失败（%s: %s，耗时 %.2fs）"
+                % (name, type(exc).__name__, exc, time.time() - started))
+
+    log("-" * 56)
+    log("排查建议：")
+    log("  · IPv6 的 DNS/TLS 失败而 IPv4 成功 -> 保持 FORCE_IPV4 = True（当前默认）")
+    log("  · IPv4/IPv6 都失败但 curl 正常 -> 代理多半只配在 ~/.curlrc，")
+    log("    Python 只认环境变量，请先 export https_proxy=... 再运行")
+    log("  · 对比验证：curl -4 -o /dev/null -w '%%{time_total}' '%s'" % url)
+    log("=" * 56)
+
+
+# ============================================================
 #                        抓取主流程
 # ============================================================
 
@@ -489,6 +600,7 @@ def crawl(pages, start_page, out_path, failed_path, query,
         results = None
         meta = {}
         reason = ""
+        page_started = time.time()
         try:
             url, results, meta = fetch_page(page, query)
         except urllib.error.HTTPError as exc:
@@ -500,8 +612,9 @@ def crawl(pages, start_page, out_path, failed_path, query,
 
         if results is None:
             failures.append(make_failure(page, url, reason))
-            log("[%d/%d] 第 %d 页失败：%s（已记录，跳过） | %s"
-                % (seq, total, page, reason, eta_text(seq, total, start_time)))
+            log("[%d/%d] 第 %d 页失败：%s（已记录，跳过）| 耗时 %.1fs | %s"
+                % (seq, total, page, reason, time.time() - page_started,
+                   eta_text(seq, total, start_time)))
             if interval > 0 and seq < total:
                 time.sleep(interval)
             continue
@@ -596,6 +709,7 @@ def retry(retry_path, out_path, retry_failed_path, query,
         results = None
         meta = {}
         reason = ""
+        page_started = time.time()
         log("[%d/%d] 重试第 %d 页 ..." % (seq, total, page))
         try:
             url, results, meta = fetch_page(page, query)
@@ -608,8 +722,9 @@ def retry(retry_path, out_path, retry_failed_path, query,
 
         if results is None:
             failures.append(make_failure(page, url, reason))
-            log("[%d/%d] 第 %d 页重试失败：%s | %s"
-                % (seq, total, page, reason, eta_text(seq, total, start_time)))
+            log("[%d/%d] 第 %d 页重试失败：%s | 耗时 %.1fs | %s"
+                % (seq, total, page, reason, time.time() - page_started,
+                   eta_text(seq, total, start_time)))
             if interval > 0 and seq < total:
                 time.sleep(interval)
             continue
@@ -679,6 +794,8 @@ EPILOG = """\
                                                 覆盖配置区的页数/间隔/超时
   ./fetch_github_stars.py -d --pages 1 --limit 2 --dry-run
                                                 调试模式：抓 1 页、每页仅处理 2 条、不写文件
+  ./fetch_github_stars.py --diagnose             网络自检（连不上 GitHub 时先跑这个）
+  ./fetch_github_stars.py --no-force-ipv4 ...    不强制 IPv4（默认强制，规避 IPv6 黑洞）
   ./fetch_github_stars.py --retry github_search_failed.jsonl
                                                 重试失败页，结果按排名插回 jsonl
   ./fetch_github_stars.py --retry github_search_failed_r1.jsonl
@@ -689,6 +806,12 @@ EPILOG = """\
   额外打印 请求URL/响应大小/耗时、HTML 长度、解析条数、每条结果的排名与描述来源、
   每个翻译接口的返回与耗时；配合 --limit N（每页只处理前 N 条）、
   --pages 1、--dry-run（不写任何文件）即可做小数据量测试。
+
+网络不通时（每页都恰好卡满 timeout 并报 SSL/网络超时，但 curl 正常）：
+  先跑 ./fetch_github_stars.py --diagnose，它会依次检查
+  代理配置 -> DNS(IPv4/IPv6) -> TLS 握手(IPv4/IPv6) -> 搜索页抓取 -> 两个翻译接口，
+  并给出结论建议。常见原因是云服务器 IPv6 黑洞（默认已用 FORCE_IPV4 规避）
+  或代理只配在了 ~/.curlrc（Python 只认 https_proxy 环境变量）。
 
 配置文件常量（脚本头部「常量配置区」）可用参数覆盖，参数优先级更高：
   DEFAULT_PAGES      <- --pages
@@ -731,6 +854,13 @@ def parse_args(argv=None):
                                   % DEFAULT_LIMIT)
     group_debug.add_argument("--dry-run", action="store_true",
                              help="演练模式：只抓取和打印，不写入任何文件")
+    group_debug.add_argument("--diagnose", action="store_true",
+                             help="网络自检：代理/DNS/TLS/搜索页/翻译接口，不写文件")
+    group_debug.add_argument("--force-ipv4", action="store_true", default=FORCE_IPV4,
+                             dest="force_ipv4",
+                             help="强制 IPv4 解析，规避 IPv6 黑洞（默认 %s）" % FORCE_IPV4)
+    group_debug.add_argument("--no-force-ipv4", action="store_false", dest="force_ipv4",
+                             help="不限制 IPv4，按系统解析顺序连接")
 
     group_file = parser.add_argument_group("文件参数")
     group_file.add_argument("--output", default=OUTPUT_FILE,
@@ -754,8 +884,13 @@ def main(argv=None):
     args = parse_args(argv)
     runtime_debug = args.debug
     runtime_timeout = args.timeout
+    apply_ipv4_preference(args.force_ipv4)
     do_translate = TRANSLATE_ENABLED and not args.no_translate
     output_path = resolve_path(args.output)
+
+    if args.diagnose:
+        diagnose_network(args.query)
+        return 0
 
     if args.retry:
         retry(resolve_path(args.retry), output_path,
