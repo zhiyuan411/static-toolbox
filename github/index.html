@@ -169,9 +169,9 @@
     .col-grid label:hover { background: #f9fafb; }
     .col-grid input { accent-color: var(--primary); }
 
+    /* 表格不限高、不产生内部滚动条：跟随整个页面一起滚动 */
     .table-box {
-        overflow: auto;
-        max-height: calc(100vh - 230px);
+        overflow: visible;
     }
 
     table {
